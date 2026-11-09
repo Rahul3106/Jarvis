@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-heading: var(--font-outfit), system-ui, sans-serif;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #fcfdff;
+}
+
+body {
+  background: #000000;
+  color: #fcfdff;
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbars for dark cockpit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0e12;
+}
+::-webkit-scrollbar-thumb {
+  background: #232530;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #363949;
+}
+
+/* Resend Glow & Editorial Text */
+.resend-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(255, 128, 31, 0.14) 0%, rgba(59, 158, 255, 0.06) 50%, transparent 75%);
+}
+
+.resend-editorial-title {
+  background: linear-gradient(180deg, #FFFFFF 0%, #A1A4A5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.resend-amber-glow {
+  box-shadow: 0 0 25px rgba(255, 128, 31, 0.25);
+}
+
+.resend-blue-glow {
+  box-shadow: 0 0 25px rgba(59, 158, 255, 0.2);
+}
+
+/* Bolt.new Cockpit panels */
+.bolt-cockpit-bg {
+  background-color: #0b0c10;
+}
+
+.bolt-panel {
+  background-color: #111218;
+  border: 1px solid #1f212c;
+}
+
+.bolt-panel-hover:hover {
+  border-color: #2e3244;
+  box-shadow: 0 4px 24px -2px rgba(20, 136, 252, 0.18);
+}
