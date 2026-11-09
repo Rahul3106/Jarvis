@@ -1,0 +1,124 @@
+
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: jarvis-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: jarvis
+      POSTGRES_USER: jarvis
+      POSTGRES_PASSWORD: jarvispassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: jarvis-prometheus
+    volumes:
+      - ./simulation/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./simulation/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api-gateway
+      - user-service
+      - order-service
+      - payment-service
+      - notification-service
+
+  # AlertManager
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: jarvis-alertmanager
+    volumes:
+      - ./simulation/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    depends_on:
+      - prometheus
+
+  # Mock Services
+  api-gateway:
+    build: ./simulation/mock-services
+    container_name: api-gateway
+    environment:
+      - SERVICE_NAME=api-gateway
+      - PORT=8000
+      - DOWNSTREAM_URLS=http://user-service:8000,http://order-service:8000
+    ports:
+      - "8001:8000"
+
+  user-service:
+    build: ./simulation/mock-services
+    container_name: user-service
+    environment:
+      - SERVICE_NAME=user-service
+      - PORT=8000
+
+  order-service:
+    build: ./simulation/mock-services
+    container_name: order-service
+    environment:
+      - SERVICE_NAME=order-service
+      - PORT=8000
+      - DOWNSTREAM_URLS=http://payment-service:8000
+
+  payment-service:
+    build: ./simulation/mock-services
+    container_name: payment-service
+    environment:
+      - SERVICE_NAME=payment-service
+      - PORT=8000
+      - DOWNSTREAM_URLS=http://notification-service:8000
+
+  notification-service:
+    build: ./simulation/mock-services
+    container_name: notification-service
+    environment:
+      - SERVICE_NAME=notification-service
+      - PORT=8000
+
+  # J.A.R.V.I.S. FastAPI Backend
+  backend:
+    build: ./backend
+    container_name: jarvis-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://jarvis:jarvispassword@postgres:5432/jarvis
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PROMETHEUS_URL=http://prometheus:9090
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - postgres
+
+  # J.A.R.V.I.S. Frontend Dashboard
+  frontend:
+    build: ./frontend
+    container_name: jarvis-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

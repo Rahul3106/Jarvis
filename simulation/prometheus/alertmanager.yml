@@ -1,0 +1,15 @@
+global:
+  resolve_timeout: 10s
+
+route:
+  group_by: ['alertname', 'instance']
+  group_wait: 2s
+  group_interval: 5s
+  repeat_interval: 1m
+  receiver: 'jarvis-webhook'
+
+receivers:
+- name: 'jarvis-webhook'
+  webhook_configs:
+  - url: 'http://backend:8000/api/v1/alerts/webhook'
+    send_resolved: true

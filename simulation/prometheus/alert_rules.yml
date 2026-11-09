@@ -1,0 +1,29 @@
+groups:
+  - name: jarvis-alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: service_memory_usage_bytes > 80000000
+        for: 2s
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 80MB (current value: {{ $value }} bytes)"
+
+      - alert: HighCpuUsage
+        expr: service_cpu_usage_ratio > 0.8
+        for: 2s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current value: {{ $value }})"
+
+      - alert: HttpErrorSpike
+        expr: increase(http_requests_total{status="500"}[10s]) > 2
+        for: 2s
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 500 error spike detected on {{ $labels.instance }}"
+          description: "High error count detected (current increase: {{ $value }} errors)"

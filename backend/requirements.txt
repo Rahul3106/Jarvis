@@ -1,0 +1,12 @@
+fastapi==0.111.0
+uvicorn==0.30.1
+langgraph==0.0.60
+langchain-core==0.2.9
+langchain-community==0.2.5
+langchain-openai==0.1.9
+docker==7.1.0
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+pydantic==2.7.4
+requests==2.32.3
+python-multipart>=0.0.9
