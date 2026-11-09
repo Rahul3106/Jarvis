@@ -1,15 +1,61 @@
-# J.A.R.V.I.S. Test Log: Challenge Scenario - Shared Database Saturation Cascade
-# Simulates the problem statement where login failures, slow API responses, and failed transactions 
-# occur across distinct microservices due to a common shared database bottleneck.
-# All related lines share trace_id=tr-pay-8821.
+# ==============================================================================
+# J.A.R.V.I.S. Production SRE Telemetry Log: Challenge Scenario
+# Scenario: Shared Database Saturation Cascade across Microservices
+# Trace Cluster: tr-pay-8821
+# Cluster: prod-us-east-k8s-cluster-01
+# Affected Services: database-service, payment-service, user-service, order-service, api-gateway
+# Description: Demonstrates cross-service cascade where unindexed queries saturate
+#              PostgreSQL connection pool, causing concurrent login failures, checkout 
+#              timeouts, and payment ledger aborts.
+# ==============================================================================
 
-[2026-11-09 10:00:00] [INFO] api-gateway: Incoming request POST /api/v1/checkout user_id=usr_99182 trace_id=tr-pay-8821
-[2026-11-09 10:00:01] [INFO] payment-service: Processing charge request for $49.99 on stripe_provider trace_id=tr-pay-8821
-[2026-11-09 10:00:02] [CRITICAL] database-service: Connection pool exhausted. active_connections=100/100, max_connections=100. Waiting requests in queue=48. trace_id=tr-pay-8821
-[2026-11-09 10:00:03] [ERROR] payment-service: HikariCP pool timeout: 30000ms elapsed acquiring connection to postgres://database-service:5432/jarvis. trace_id=tr-pay-8821
-[2026-11-09 10:00:03] [ERROR] payment-service: Transaction aborted. Failed to write ledger entry for amount=$49.99. trace_id=tr-pay-8821
-[2026-11-09 10:00:04] [ERROR] order-service: DB query failed: org.postgresql.util.PSQLException: Connection refused or timed out while updating order_status='COMPLETED'. trace_id=tr-pay-8821
-[2026-11-09 10:00:04] [WARNING] user-service: Session authentication delayed: DB pool checkout latency > 4200ms for user_id=usr_99182. trace_id=tr-pay-8821
-[2026-11-09 10:00:05] [ERROR] api-gateway: Downstream timeout 504 Gateway Timeout calling payment-service /checkout after 5000ms. trace_id=tr-pay-8821
-[2026-11-09 10:00:06] [CRITICAL] payment-service: Cascade detected: 175 checkout transactions failed ($8,748.25 at risk), 95 failed logins. trace_id=tr-pay-8821
+2026-11-09 10:14:00.102 [INFO] [ingress-controller-7f4b] api-gateway: GET /healthz 200 OK latency=1.2ms client_ip=10.244.0.1
+2026-11-09 10:14:01.015 [INFO] [http-nio-8080-exec-1] api-gateway: POST /api/v1/auth/login client_ip=198.51.100.24 user_id=usr_1002 trace_id=tr-pay-8821
+2026-11-09 10:14:01.032 [INFO] [auth-worker-01] user-service: Authenticating user_id=usr_1002 against auth_db provider=local trace_id=tr-pay-8821
+2026-11-09 10:14:01.048 [INFO] [auth-worker-01] user-service: User session token generated session_id=sess_9f81bc2 trace_id=tr-pay-8821
+2026-11-09 10:14:01.055 [INFO] [http-nio-8080-exec-1] api-gateway: POST /api/v1/auth/login 200 OK latency=40ms trace_id=tr-pay-8821
+2026-11-09 10:14:02.112 [INFO] [http-nio-8080-exec-3] api-gateway: POST /api/v1/orders/checkout client_ip=198.51.100.24 user_id=usr_1002 trace_id=tr-pay-8821
+2026-11-09 10:14:02.124 [INFO] [order-proc-04] order-service: Validating shopping cart cart_id=cart_8831 items=3 total_amount=149.95 trace_id=tr-pay-8821
+2026-11-09 10:14:02.140 [INFO] [order-proc-04] order-service: Inventory reserved for sku_4091, sku_9921, sku_1102 trace_id=tr-pay-8821
+2026-11-09 10:14:02.155 [INFO] [payment-exec-02] payment-service: Initiating pre-auth for amount=$149.95 currency=USD trace_id=tr-pay-8821
+2026-11-09 10:14:02.180 [INFO] [payment-exec-02] payment-service: Stripe gateway authorization succeeded auth_code=ch_3N829a trace_id=tr-pay-8821
 
+# --- Phase 2: Inception of Resource Contention on Shared Database ---
+2026-11-09 10:14:05.210 [INFO] [db-analytics-job] database-service: Executing scheduled hourly batch analytics query: SELECT * FROM transactions WHERE settled_at IS NULL FOR UPDATE
+2026-11-09 10:14:06.402 [WARNING] [db-monitor-daemon] database-service: Slow query detected: PID 48211 running > 4200ms lock_mode=ExclusiveLock table=transactions
+2026-11-09 10:14:08.519 [WARNING] [HikariPool-1 housekeeper] database-service: Connection pool saturation warning: active_connections=82/100, idle_connections=18, pending_threads=4 trace_id=tr-pay-8821
+2026-11-09 10:14:10.104 [INFO] [http-nio-8080-exec-7] api-gateway: POST /api/v1/auth/login client_ip=203.0.113.88 user_id=usr_99182 trace_id=tr-pay-8821
+2026-11-09 10:14:11.230 [INFO] [http-nio-8080-exec-8] api-gateway: POST /api/v1/orders/checkout client_ip=203.0.113.88 user_id=usr_99182 trace_id=tr-pay-8821
+2026-11-09 10:14:12.890 [WARNING] [auth-worker-09] user-service: Session authentication delayed: DB pool checkout latency > 2800ms for user_id=usr_99182 trace_id=tr-pay-8821
+2026-11-09 10:14:14.331 [WARNING] [order-proc-08] order-service: Acquiring write lock on orders table: waiting 3100ms on connection pool trace_id=tr-pay-8821
+2026-11-09 10:14:15.012 [CRITICAL] [HikariPool-1 housekeeper] database-service: Connection pool exhausted. active_connections=100/100, max_connections=100. Waiting requests in queue=48. trace_id=tr-pay-8821
+2026-11-09 10:14:15.550 [CRITICAL] [pg-kernel-01] database-service: PostgreSQL pg_stat_activity: max_connections reached (100). Remaining slots reserved for superuser maintenance. trace_id=tr-pay-8821
+
+# --- Phase 3: Cascading Failures Across Microservices ---
+2026-11-09 10:14:16.120 [ERROR] [payment-exec-09] payment-service: HikariCP pool timeout: 30000ms elapsed acquiring connection to postgres://database-service:5432/jarvis. trace_id=tr-pay-8821
+2026-11-09 10:14:16.125 [ERROR] [payment-exec-09] payment-service: org.postgresql.util.PSQLException: Connection refused or timed out while acquiring JDBC connection trace_id=tr-pay-8821
+2026-11-09 10:14:16.130 [ERROR] [payment-exec-09] payment-service:     at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:186) trace_id=tr-pay-8821
+2026-11-09 10:14:16.135 [ERROR] [payment-exec-09] payment-service:     at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:148) trace_id=tr-pay-8821
+2026-11-09 10:14:16.140 [ERROR] [payment-exec-09] payment-service:     at com.sentinelops.payment.service.LedgerManager.commitTransaction(LedgerManager.java:214) trace_id=tr-pay-8821
+2026-11-09 10:14:16.145 [ERROR] [payment-exec-09] payment-service: Transaction aborted. Failed to write ledger entry for amount=$49.99. trace_id=tr-pay-8821
+2026-11-09 10:14:17.202 [ERROR] [auth-handler-04] user-service: Authentication failed: org.postgresql.util.PSQLException: Connection acquire timeout after 5000ms. trace_id=tr-pay-8821
+2026-11-09 10:14:17.208 [ERROR] [auth-handler-04] user-service: UserLoginException: User login aborted for user_id=usr_99182. Reason=DatabaseTimeout. trace_id=tr-pay-8821
+2026-11-09 10:14:18.450 [ERROR] [order-proc-11] order-service: DB query failed: org.postgresql.util.PSQLException: Connection refused or timed out while updating order_status='COMPLETED'. trace_id=tr-pay-8821
+2026-11-09 10:14:18.455 [ERROR] [order-proc-11] order-service: OrderPlacementException: Rollback failed for order_id=ord_99812. Downstream DB pool saturated. trace_id=tr-pay-8821
+2026-11-09 10:14:19.112 [ERROR] [notification-worker-02] notification-service: Failed to persist dispatch event in outbox table: DB connection timeout. trace_id=tr-pay-8821
+
+# --- Phase 4: API Gateway Ingress Degradation & Circuit Breaking ---
+2026-11-09 10:14:20.005 [ERROR] [http-nio-8080-exec-8] api-gateway: Downstream timeout 504 Gateway Timeout calling payment-service /checkout after 5000ms. trace_id=tr-pay-8821
+2026-11-09 10:14:20.120 [ERROR] [http-nio-8080-exec-7] api-gateway: Downstream 500 Internal Server Error calling user-service /auth/login after 5000ms. trace_id=tr-pay-8821
+2026-11-09 10:14:21.050 [WARNING] [circuit-breaker-eval] api-gateway: CircuitBreaker 'payment-service' failure rate reached 78.4% (threshold=50.0%). State transitioning CLOSED -> OPEN. trace_id=tr-pay-8821
+2026-11-09 10:14:22.310 [ERROR] [http-nio-8080-exec-12] api-gateway: 503 Service Unavailable: Request rejected by CircuitBreaker 'payment-service'. trace_id=tr-pay-8821
+2026-11-09 10:14:23.440 [WARNING] [circuit-breaker-eval] api-gateway: CircuitBreaker 'user-service' failure rate reached 65.2%. State transitioning CLOSED -> OPEN. trace_id=tr-pay-8821
+2026-11-09 10:14:24.115 [INFO] [retry-scheduler-01] api-gateway: Exponential backoff retries exhausted for 42 pending checkout requests trace_id=tr-pay-8821
+
+# --- Phase 5: SRE Impact Aggregation & Anomaly Spike Detection ---
+2026-11-09 10:14:25.801 [CRITICAL] [alert-eval-engine] payment-service: Cascade detected: 175 checkout transactions failed ($8,748.25 at risk), 95 failed logins. trace_id=tr-pay-8821
+2026-11-09 10:14:26.104 [CRITICAL] [sre-health-monitor] database-service: Critical connection pool saturation detected. Active: 100/100, WaitQueue: 64, LockWait: 18.2s trace_id=tr-pay-8821
+2026-11-09 10:14:27.420 [ERROR] [order-proc-14] order-service: Checkout cascade failure: 142 orders stranded in PENDING_PAYMENT state trace_id=tr-pay-8821
+2026-11-09 10:14:28.910 [WARNING] [notification-worker-05] notification-service: Delivery queue backlog reached 2,450 unsent customer transactional emails trace_id=tr-pay-8821
+2026-11-09 10:14:30.002 [INFO] [prometheus-metrics-exporter] api-gateway: Emitting prometheus metric: http_server_requests_seconds_count{status="504"} = 175 trace_id=tr-pay-8821
+2026-11-09 10:14:30.015 [INFO] [prometheus-metrics-exporter] api-gateway: Emitting prometheus metric: http_server_requests_seconds_count{status="500"} = 95 trace_id=tr-pay-8821

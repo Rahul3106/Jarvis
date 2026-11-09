@@ -1,11 +1,43 @@
-# J.A.R.V.I.S. Test Log: Memory Leak & Container OOM Crash
-# Simulates severe memory exhaustion inside payment-service leading to a fatal OutOfMemoryError.
-# All lines share trace_id=tr-mem-9912.
+# ==============================================================================
+# J.A.R.V.I.S. Production SRE Telemetry Log: Out-Of-Memory Heap Leak
+# Scenario: JVM Memory Leak and Garbage Collection Thrashing
+# Target Service: payment-service
+# Trace Cluster: tr-oom-9920
+# Pod: payment-service-7d489b4f7b-m8c2q
+# Description: Demonstrates unclosed object references in payment replay buffer,
+#              causing Old Generation exhaustion, 100% GC CPU thrash, and fatal OOM.
+# ==============================================================================
 
-[2026-11-09 10:14:00] [INFO] payment-service: Initializing transaction settlement batch runner worker_id=wk_04 trace_id=tr-mem-9912
-[2026-11-09 10:14:02] [WARNING] payment-service: HighMemoryUsage: JVM heap reached 74.5MB (Limit 80MB, 93.1% allocated). Garbage collector pause time=1240ms. trace_id=tr-mem-9912
-[2026-11-09 10:14:03] [ERROR] payment-service: OutOfMemoryError: Java heap space encountered in com.jarvis.payment.TransactionQueue.enqueueBatch(). trace_id=tr-mem-9912
-[2026-11-09 10:14:04] [CRITICAL] payment-service: Uncaught exception in thread 'pool-3-thread-9': java.lang.OutOfMemoryError. Container jarvis-payment-1 unresponsive. trace_id=tr-mem-9912
-[2026-11-09 10:14:05] [CRITICAL] payment-service: Health probe failed on http://payment-service:8004/health with HTTP 503 Service Unavailable. trace_id=tr-mem-9912
-[2026-11-09 10:14:06] [ERROR] api-gateway: Upstream connection reset by peer on payment-service:8004. trace_id=tr-mem-9912
+2026-11-09 10:20:00.012 [INFO] [main] payment-service: Initializing payment-service v2.4.1 runtime=OpenJDK-17-JVM max_heap=256MB trace_id=tr-oom-9920
+2026-11-09 10:20:01.140 [INFO] [main] payment-service: Connected to message bus amqp://rabbitmq-cluster:5672/payments trace_id=tr-oom-9920
+2026-11-09 10:20:02.320 [INFO] [main] payment-service: Payment engine ready. Listening on port 8083. Liveness probe /healthz registered. trace_id=tr-oom-9920
+2026-11-09 10:20:10.450 [INFO] [payment-worker-1] payment-service: Processing inbound batch charge txn_id=tx_9901 amount=$29.99 gateway=stripe trace_id=tr-oom-9920
+2026-11-09 10:20:11.210 [INFO] [payment-worker-2] payment-service: Processing inbound batch charge txn_id=tx_9902 amount=$84.50 gateway=paypal trace_id=tr-oom-9920
+2026-11-09 10:20:12.890 [INFO] [payment-worker-1] payment-service: Payment settled txn_id=tx_9901 auth_code=AUTH_OK_1821 trace_id=tr-oom-9920
+2026-11-09 10:20:15.102 [INFO] [GC-Monitor] payment-service: JVM Young Gen GC completed: 32MB->8MB allocated in 14ms trace_id=tr-oom-9920
 
+# --- Phase 2: Rapid Unbounded Growth in In-Memory Transaction Replay Cache ---
+2026-11-09 10:20:20.145 [WARNING] [payment-worker-3] payment-service: ReplayCache capacity exceeded soft warning: 50,000 unevicted keys retained in memory trace_id=tr-oom-9920
+2026-11-09 10:20:25.890 [WARNING] [payment-worker-4] payment-service: In-memory settlement buffer memory usage > 65% (current_heap=168MB/256MB) trace_id=tr-oom-9920
+2026-11-09 10:20:30.312 [WARNING] [jvm-metrics-sampler] payment-service: Memory leak signature detected: Heap retention slope +4.2MB/s over 60s window trace_id=tr-oom-9920
+2026-11-09 10:20:35.401 [WARNING] [payment-worker-1] payment-service: High memory utilization: 82% heap occupied (210MB / 256MB). GC pause latency increasing trace_id=tr-oom-9920
+2026-11-09 10:20:40.110 [WARNING] [GC-Daemon] payment-service: Full GC [PSYoungGen: 32768K->31200K(32768K)] [ParOldGen: 184320K->182110K(196608K)] 217088K->213310K(229376K), 1.821 secs trace_id=tr-oom-9920
+2026-11-09 10:20:45.670 [WARNING] [payment-worker-2] payment-service: Transaction execution delayed: thread blocked waiting for object allocation in Eden space trace_id=tr-oom-9920
+2026-11-09 10:20:50.210 [WARNING] [GC-Daemon] payment-service: Consecutive Full GC triggered: reclaimed only 2.1MB. Old Gen occupancy remaining at 92.5% trace_id=tr-oom-9920
+
+# --- Phase 3: Critical Heap Exhaustion & Garbage Collector Thrash ---
+2026-11-09 10:20:55.450 [CRITICAL] [jvm-monitor] payment-service: Critical memory threshold breached: Heap at 98.4% (252MB / 256MB). GC pause time 3,420ms trace_id=tr-oom-9920
+2026-11-09 10:20:58.120 [CRITICAL] [GC-Daemon] payment-service: Full GC thrashing: CPU usage 99.2% dedicated to garbage collection threads trace_id=tr-oom-9920
+2026-11-09 10:21:00.005 [ERROR] [payment-worker-1] payment-service: java.lang.OutOfMemoryError: Java heap space trace_id=tr-oom-9920
+2026-11-09 10:21:00.010 [ERROR] [payment-worker-1] payment-service:     at java.base/java.util.Arrays.copyOf(Arrays.java:3512) trace_id=tr-oom-9920
+2026-11-09 10:21:00.015 [ERROR] [payment-worker-1] payment-service:     at java.base/java.util.ArrayList.grow(ArrayList.java:237) trace_id=tr-oom-9920
+2026-11-09 10:21:00.020 [ERROR] [payment-worker-1] payment-service:     at com.sentinelops.payment.cache.TransactionReplayCache.put(TransactionReplayCache.java:88) trace_id=tr-oom-9920
+2026-11-09 10:21:00.025 [ERROR] [payment-worker-1] payment-service:     at com.sentinelops.payment.service.PaymentWorker.run(PaymentWorker.java:142) trace_id=tr-oom-9920
+2026-11-09 10:21:01.320 [ERROR] [payment-worker-2] payment-service: java.lang.OutOfMemoryError: GC overhead limit exceeded trace_id=tr-oom-9920
+2026-11-09 10:21:02.115 [ERROR] [payment-worker-3] payment-service: Thread death: worker thread payment-worker-3 terminated abruptly trace_id=tr-oom-9920
+
+# --- Phase 4: Pod Degradation, Liveness Failure & K8s Event ---
+2026-11-09 10:21:05.412 [ERROR] [kubelet] payment-service: Liveness probe failed: HTTP probe GET http://10.244.2.14:8083/healthz connection refused after 5000ms timeout trace_id=tr-oom-9920
+2026-11-09 10:21:07.890 [ERROR] [ingress-proxy] api-gateway: Upstream endpoint 10.244.2.14:8083 marked UNHEALTHY. Removing from active routing pool trace_id=tr-oom-9920
+2026-11-09 10:21:09.105 [CRITICAL] [kernel-oom-killer] payment-service: Node kernel invoked oom-killer: Task payment-service (PID 1492) killed with signal 9 trace_id=tr-oom-9920
+2026-11-09 10:21:10.000 [CRITICAL] [k8s-pod-lifecycle] payment-service: Container payment-service terminated with exitCode=137 (OOMKilled). RestartCount=3 trace_id=tr-oom-9920

@@ -1,0 +1,57 @@
+# ==============================================================================
+# J.A.R.V.I.S. Production Telemetry Stream: Multi-Service Live Outage
+# Incident Scenario: High-Volume Payment Gateway & Auth Outage Under Black Friday Surge
+# Cluster: prod-us-east-1-eks
+# Ingress Controller: traefik-ingress-edge-7f89b
+# Services Involved: api-gateway, user-service, order-service, payment-service, database-service, notification-service
+# Primary Trace Cluster: tr-live-9901
+# ==============================================================================
+
+2026-11-09 10:45:00.010 [INFO] [traefik-proxy] api-gateway: Ingress route match host=api.sentinelpay.io path=/api/v1/auth/login client_ip=198.51.100.10 trace_id=tr-live-9901
+2026-11-09 10:45:00.025 [INFO] [auth-exec-1] user-service: Verified public RS256 signature for client_id=client_web_9918 trace_id=tr-live-9901
+2026-11-09 10:45:00.038 [INFO] [auth-exec-1] user-service: User authenticated user_id=usr_99102 session_exp=86400 trace_id=tr-live-9901
+2026-11-09 10:45:00.045 [INFO] [traefik-proxy] api-gateway: HTTP 200 OK duration=35ms upstream=user-service:8081 trace_id=tr-live-9901
+2026-11-09 10:45:01.100 [INFO] [traefik-proxy] api-gateway: Ingress route match host=api.sentinelpay.io path=/api/v1/cart/items client_ip=198.51.100.10 trace_id=tr-live-9901
+2026-11-09 10:45:01.115 [INFO] [order-exec-4] order-service: Fetching active cart for user_id=usr_99102 trace_id=tr-live-9901
+2026-11-09 10:45:01.128 [INFO] [order-exec-4] order-service: Cart retrieved: 3 line items, cart_total=$189.50 trace_id=tr-live-9901
+2026-11-09 10:45:01.135 [INFO] [traefik-proxy] api-gateway: HTTP 200 OK duration=25ms upstream=order-service:8082 trace_id=tr-live-9901
+2026-11-09 10:45:02.200 [INFO] [traefik-proxy] api-gateway: Ingress route match host=api.sentinelpay.io path=/api/v1/checkout client_ip=198.51.100.10 trace_id=tr-live-9901
+2026-11-09 10:45:02.215 [INFO] [order-exec-7] order-service: Initiating checkout flow for order_id=ord_882910 cart_id=cart_99102 amount=$189.50 trace_id=tr-live-9901
+2026-11-09 10:45:02.240 [INFO] [payment-exec-1] payment-service: Processing charge request: card_token=tok_visa_4242 amount=$189.50 currency=USD trace_id=tr-live-9901
+2026-11-09 10:45:02.290 [INFO] [payment-exec-1] payment-service: Acquirer pre-authorization succeeded: ref_code=acq_auth_7718 trace_id=tr-live-9901
+
+# --- Heavy Traffic Influx & Database Pool Saturation Trigger ---
+2026-11-09 10:45:04.100 [INFO] [pg-stat-daemon] database-service: Current active client connections: 72/100, idle: 28, transactions/sec: 1,840 trace_id=tr-live-9901
+2026-11-09 10:45:05.310 [WARNING] [pg-stat-daemon] database-service: Connection spike detected: 89/100 active connections in pool trace_id=tr-live-9901
+2026-11-09 10:45:06.120 [WARNING] [db-lock-monitor] database-service: Slow lock acquisition on table 'accounts_payable': query PID 31920 held lock for 4,810ms trace_id=tr-live-9901
+2026-11-09 10:45:07.450 [WARNING] [HikariPool-1 housekeeper] database-service: HikariPool-1 - Connection pool utilization 94%. Active: 94, Idle: 6, Waiting: 14 trace_id=tr-live-9901
+2026-11-09 10:45:08.890 [WARNING] [traefik-proxy] api-gateway: Latency spike: Upstream /api/v1/checkout p95 latency reached 2,800ms trace_id=tr-live-9901
+2026-11-09 10:45:09.115 [WARNING] [auth-exec-8] user-service: Slow DB query: SELECT * FROM sessions WHERE session_id = 'sess_99102' took 3,210ms trace_id=tr-live-9901
+2026-11-09 10:45:10.005 [CRITICAL] [HikariPool-1 housekeeper] database-service: Connection pool exhausted. active_connections=100/100, max_connections=100. Waiting requests in queue=58. trace_id=tr-live-9901
+2026-11-09 10:45:10.120 [CRITICAL] [pg-kernel] database-service: FATAL: remaining connection slots are reserved for non-replication superuser connections trace_id=tr-live-9901
+
+# --- Cross-Service Cascading Outage ---
+2026-11-09 10:45:11.200 [ERROR] [payment-exec-8] payment-service: HikariCP pool timeout: 30000ms elapsed acquiring connection to postgres://database-service:5432/jarvis. trace_id=tr-live-9901
+2026-11-09 10:45:11.215 [ERROR] [payment-exec-8] payment-service: org.postgresql.util.PSQLException: Connection refused or timed out while acquiring JDBC connection trace_id=tr-live-9901
+2026-11-09 10:45:11.220 [ERROR] [payment-exec-8] payment-service:     at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:186) trace_id=tr-live-9901
+2026-11-09 10:45:11.225 [ERROR] [payment-exec-8] payment-service:     at com.sentinelops.payment.service.LedgerManager.commitTransaction(LedgerManager.java:214) trace_id=tr-live-9901
+2026-11-09 10:45:11.230 [ERROR] [payment-exec-8] payment-service: Transaction aborted. Failed to write ledger entry for amount=$189.50. trace_id=tr-live-9901
+2026-11-09 10:45:12.410 [ERROR] [auth-exec-9] user-service: UserLoginException: User login aborted for user_id=usr_99102. Reason=DatabaseTimeout. trace_id=tr-live-9901
+2026-11-09 10:45:12.420 [ERROR] [auth-exec-9] user-service: org.postgresql.util.PSQLException: Connection acquire timeout after 5000ms. trace_id=tr-live-9901
+2026-11-09 10:45:13.105 [ERROR] [order-exec-11] order-service: DB query failed: org.postgresql.util.PSQLException: Connection refused or timed out while updating order_status='COMPLETED'. trace_id=tr-live-9901
+2026-11-09 10:45:13.115 [ERROR] [order-exec-11] order-service: OrderPlacementException: Rollback failed for order_id=ord_882910. Downstream DB pool saturated. trace_id=tr-live-9901
+2026-11-09 10:45:14.050 [ERROR] [traefik-proxy] api-gateway: Downstream timeout 504 Gateway Timeout calling payment-service /checkout after 5000ms. trace_id=tr-live-9901
+2026-11-09 10:45:14.210 [ERROR] [traefik-proxy] api-gateway: Downstream 500 Internal Server Error calling user-service /auth/login after 5000ms. trace_id=tr-live-9901
+2026-11-09 10:45:15.110 [WARNING] [notify-worker-3] notification-service: Failed to persist order notification in outbox: Database timeout. trace_id=tr-live-9901
+
+# --- Circuit Breaker Trips & Blast Radius Escalation ---
+2026-11-09 10:45:16.002 [WARNING] [resilience-circuit-breaker] api-gateway: CircuitBreaker 'payment-service' failure rate reached 81.2% (threshold=50.0%). State transitioning CLOSED -> OPEN. trace_id=tr-live-9901
+2026-11-09 10:45:17.150 [ERROR] [traefik-proxy] api-gateway: 503 Service Unavailable: Request rejected by CircuitBreaker 'payment-service'. trace_id=tr-live-9901
+2026-11-09 10:45:18.320 [WARNING] [resilience-circuit-breaker] api-gateway: CircuitBreaker 'user-service' failure rate reached 74.0%. State transitioning CLOSED -> OPEN. trace_id=tr-live-9901
+2026-11-09 10:45:19.450 [ERROR] [traefik-proxy] api-gateway: 503 Service Unavailable: Request rejected by CircuitBreaker 'user-service'. trace_id=tr-live-9901
+2026-11-09 10:45:20.100 [CRITICAL] [sre-incident-correlator] payment-service: Cascade detected: 175 checkout transactions failed ($8,748.25 at risk), 95 failed logins. trace_id=tr-live-9901
+2026-11-09 10:45:21.050 [CRITICAL] [sre-health-monitor] database-service: Critical connection pool saturation detected. Active: 100/100, WaitQueue: 64, LockWait: 18.2s trace_id=tr-live-9901
+2026-11-09 10:45:22.120 [ERROR] [order-exec-18] order-service: Checkout cascade failure: 184 orders stranded in PENDING_PAYMENT state trace_id=tr-live-9901
+2026-11-09 10:45:23.400 [WARNING] [notify-worker-7] notification-service: Dispatch queue backlog reached 3,120 unsent transactional messages trace_id=tr-live-9901
+2026-11-09 10:45:25.010 [INFO] [prometheus-collector] api-gateway: Emitting metric: http_server_requests_seconds_count{status="504"} = 184 trace_id=tr-live-9901
+2026-11-09 10:45:25.020 [INFO] [prometheus-collector] api-gateway: Emitting metric: http_server_requests_seconds_count{status="500"} = 112 trace_id=tr-live-9901

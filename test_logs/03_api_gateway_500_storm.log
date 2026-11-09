@@ -1,11 +1,40 @@
-# J.A.R.V.I.S. Test Log: HTTP 500 Error Storm & Gateway Circuit Breaker
-# Simulates downstream dependency failure causing a rapid burst of HTTP 500 errors on api-gateway.
-# All lines share trace_id=tr-gw-4401.
+# ==============================================================================
+# J.A.R.V.I.S. Production SRE Telemetry Log: API Gateway 500 Storm
+# Scenario: Ingress Gateway Upstream Outage & Downstream Retry Storm
+# Target Service: api-gateway
+# Trace Cluster: tr-gw-5001
+# Ingress Controller: envoy-edge-ingress-6c9bf66b7-v8q2x
+# Description: Demonstrates upstream order-service failure cascading into 
+#              widespread 500/504 errors, circuit breaker trips, and retry storms.
+# ==============================================================================
 
-[2026-11-09 11:22:10] [INFO] api-gateway: Routing GET /api/v1/orders to order-service:8002 trace_id=tr-gw-4401
-[2026-11-09 11:22:12] [ERROR] api-gateway: HTTP 500 Internal Server Error returned by user-service for auth token validation. trace_id=tr-gw-4401
-[2026-11-09 11:22:14] [ERROR] api-gateway: HttpErrorSpike: Error rate exceeded 15% threshold (48 failures / 60 seconds). trace_id=tr-gw-4401
-[2026-11-09 11:22:15] [WARNING] user-service: Database connection timeout during session query for token=tok_secure_8892. trace_id=tr-gw-4401
-[2026-11-09 11:22:16] [CRITICAL] api-gateway: Circuit breaker state transitioned to OPEN for user-service cluster. Fast-failing incoming traffic. trace_id=tr-gw-4401
-[2026-11-09 11:22:18] [ERROR] api-gateway: Ingress dropped 14 consecutive client requests with HTTP 503 Circuit Breaker Open. trace_id=tr-gw-4401
+2026-11-09 10:30:00.100 [INFO] [ingress-listener] api-gateway: Edge ingress listener active on 0.0.0.0:443 tls=TLSv1.3 max_connections=10000 trace_id=tr-gw-5001
+2026-11-09 10:30:01.214 [INFO] [worker-thread-01] api-gateway: POST /api/v1/orders client_ip=198.51.100.12 user_id=usr_4401 status=200 upstream_latency=18ms trace_id=tr-gw-5001
+2026-11-09 10:30:02.340 [INFO] [worker-thread-04] api-gateway: POST /api/v1/orders client_ip=198.51.100.19 user_id=usr_4402 status=200 upstream_latency=21ms trace_id=tr-gw-5001
+2026-11-09 10:30:03.550 [INFO] [worker-thread-02] api-gateway: GET /api/v1/orders/history client_ip=203.0.113.41 user_id=usr_4403 status=200 upstream_latency=12ms trace_id=tr-gw-5001
 
+# --- Phase 2: Upstream Degradation & Increased Latency on Order Service ---
+2026-11-09 10:30:08.120 [WARNING] [worker-thread-06] api-gateway: Upstream response latency degradation: http://order-service:8082 took 2,840ms (p99 threshold=500ms) trace_id=tr-gw-5001
+2026-11-09 10:30:10.450 [WARNING] [worker-thread-08] api-gateway: Upstream connection acquisition delay: 1,400ms waiting for idle socket in pool [order-upstream] trace_id=tr-gw-5001
+2026-11-09 10:30:12.780 [WARNING] [worker-thread-03] api-gateway: HTTP 502 Bad Gateway: Upstream connection reset by peer while reading response header from order-service:8082 trace_id=tr-gw-5001
+2026-11-09 10:30:14.015 [WARNING] [rate-limiter] api-gateway: Rate limit threshold approaching for client tier 'public-api': 890/1000 req/min trace_id=tr-gw-5001
+
+# --- Phase 3: Upstream Timeout Spike & 500 Storm Trigger ---
+2026-11-09 10:30:15.210 [ERROR] [worker-thread-09] api-gateway: Upstream timeout: [504 Gateway Timeout] calling upstream http://order-service:8082/api/v1/orders after 5000ms trace_id=tr-gw-5001
+2026-11-09 10:30:15.420 [ERROR] [worker-thread-11] api-gateway: Upstream timeout: [504 Gateway Timeout] calling upstream http://order-service:8082/api/v1/orders after 5000ms trace_id=tr-gw-5001
+2026-11-09 10:30:15.650 [ERROR] [worker-thread-02] api-gateway: HTTP 500 Internal Server Error returned by downstream service: {"error": "InternalServerError", "message": "Unhandled database connection refusal"} trace_id=tr-gw-5001
+2026-11-09 10:30:16.102 [ERROR] [worker-thread-05] api-gateway: HTTP 500 Internal Server Error: Failed to forward request to order-service trace_id=tr-gw-5001
+2026-11-09 10:30:16.890 [CRITICAL] [anomaly-detector] api-gateway: HttpErrorSpike triggered: 5xx error rate exceeded threshold: current=42.8% (threshold=5.0%) trace_id=tr-gw-5001
+2026-11-09 10:30:17.340 [CRITICAL] [anomaly-detector] api-gateway: Surge in 500 Internal Server Error responses: 312 errors observed in last 10 seconds trace_id=tr-gw-5001
+
+# --- Phase 4: Downstream Client Retry Storm & Thread Starvation ---
+2026-11-09 10:30:18.115 [WARNING] [ingress-filter] api-gateway: Ingress traffic spike detected: 1,850 RPS (normal: 250 RPS). Client retry storm identified without backoff jitter trace_id=tr-gw-5001
+2026-11-09 10:30:19.450 [ERROR] [executor-pool] api-gateway: java.util.concurrent.RejectedExecutionException: Task rejected from ThreadPoolExecutor [queue capacity 1000 saturated] trace_id=tr-gw-5001
+2026-11-09 10:30:20.100 [CRITICAL] [circuit-breaker] api-gateway: CircuitBreaker 'order-service-cb' tripped OPEN: Failure rate 86.4% across 450 evaluated calls trace_id=tr-gw-5001
+2026-11-09 10:30:21.220 [ERROR] [worker-thread-14] api-gateway: HTTP 503 Service Unavailable: Short-circuited by CircuitBreaker 'order-service-cb' trace_id=tr-gw-5001
+2026-11-09 10:30:22.405 [ERROR] [worker-thread-07] api-gateway: HTTP 503 Service Unavailable: Short-circuited by CircuitBreaker 'order-service-cb' trace_id=tr-gw-5001
+
+# --- Phase 5: SRE Telemetry Metrics & Incident Propagation ---
+2026-11-09 10:30:25.012 [CRITICAL] [alertmanager-emitter] api-gateway: Firing AlertManager webhook: alertname="Http500Storm" service="api-gateway" severity="critical" trace_id=tr-gw-5001
+2026-11-09 10:30:26.110 [WARNING] [user-impact-aggregator] api-gateway: Estimated customer transactions rejected: 642 failed checkouts in 60s window trace_id=tr-gw-5001
+2026-11-09 10:30:28.005 [INFO] [ingress-telemetry] api-gateway: Gateway health degraded: Active CircuitBreakers=[order-service: OPEN, payment-service: HALF_OPEN] trace_id=tr-gw-5001

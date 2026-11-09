@@ -9,10 +9,11 @@ This directory contains pre-configured test log files designed to test J.A.R.V.I
 | File | Format | Scenario | Key Trigger & Correlated Services |
 | :--- | :--- | :--- | :--- |
 | **`01_challenge_db_saturation_cascade.log`** | Plaintext Microservices Log | **Challenge Scenario** · Shared DB Saturation | `database-service` pool exhaustion (100/100) causing cascade across `payment-service`, `order-service`, `user-service`, and `api-gateway` (Shared `trace_id=tr-pay-8821`). |
-| **`02_payment_oom_heap_leak.log`** | Plaintext Application Log | JVM Heap Leak / OutOfMemory Crash | `payment-service` heap memory surge to 93.1%, `OutOfMemoryError` crash, container health probe failure (`trace_id=tr-mem-9912`). |
-| **`03_api_gateway_500_storm.log`** | Plaintext Access & Ingress Log | Gateway Error Spike & Circuit Breaker | `api-gateway` HTTP 500 error burst, `user-service` timeout, and circuit breaker transition to `OPEN` (`trace_id=tr-gw-4401`). |
-| **`04_structured_cloud_stream.jsonl`** | JSON Lines (JSONL) | Cloud Native Structured Telemetry | Modern streaming JSON lines normalized into standard `Event` records with trace mapping (`trace_id=tr-json-7701`). |
+| **`02_payment_oom_heap_leak.log`** | Plaintext Application Log | JVM Heap Leak / OutOfMemory Crash | `payment-service` heap memory surge to 98.4%, `OutOfMemoryError` crash, container health probe failure (`trace_id=tr-oom-9920`). |
+| **`03_api_gateway_500_storm.log`** | Plaintext Access & Ingress Log | Gateway Error Spike & Circuit Breaker | `api-gateway` HTTP 500 error burst, upstream timeout, and circuit breaker transition to `OPEN` (`trace_id=tr-gw-5001`). |
+| **`04_structured_cloud_stream.jsonl`** | JSON Lines (JSONL) | Cloud Native Structured Telemetry | Modern streaming JSON lines normalized into standard `Event` records with trace mapping (`trace_id=tr-cloud-7701`). |
 | **`05_multi_service_batch_dump.json`** | JSON Array Batch | Multi-Service Batch Ingestion Dump | JSON telemetry dump covering metric breaches, timeouts, and checkout failures (`trace_id=tr-batch-1001`). |
+| **`06_digital_payment_live_outage_stream.log`** | Plaintext High-Density Stream | End-to-End Enterprise Outage | 100+ line live stream with multi-thread ingress, slow locks, HikariCP exhaustion, and circuit breakers (`trace_id=tr-live-9901`). |
 
 ---
 

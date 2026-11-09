@@ -3,41 +3,153 @@
     "service": "api-gateway",
     "event_type": "request_in",
     "severity": "info",
-    "timestamp": "2026-11-09T16:00:00Z",
+    "timestamp": "2026-11-09T16:00:00.120Z",
     "trace_id": "tr-batch-1001",
-    "message": "Gateway received POST /checkout request from IP 192.168.1.50"
+    "message": "Gateway received POST /api/v1/auth/login client_ip=198.51.100.82 user_agent=iOS/16.2 client_version=4.1.0",
+    "metadata": {"client_ip": "198.51.100.82", "endpoint": "/api/v1/auth/login", "method": "POST"}
+  },
+  {
+    "service": "user-service",
+    "event_type": "auth_attempt",
+    "severity": "info",
+    "timestamp": "2026-11-09T16:00:00.240Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Validating user credentials for user_id=usr_88291 provider=argon2id",
+    "metadata": {"user_id": "usr_88291", "algorithm": "argon2id"}
+  },
+  {
+    "service": "api-gateway",
+    "event_type": "request_in",
+    "severity": "info",
+    "timestamp": "2026-11-09T16:00:01.050Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Gateway received POST /api/v1/orders/checkout client_ip=198.51.100.82 user_id=usr_88291",
+    "metadata": {"client_ip": "198.51.100.82", "endpoint": "/api/v1/orders/checkout"}
+  },
+  {
+    "service": "order-service",
+    "event_type": "order_creation",
+    "severity": "info",
+    "timestamp": "2026-11-09T16:00:01.120Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Constructing order draft for cart_id=cart_3310 item_count=4 subtotal=210.00 currency=USD",
+    "metadata": {"cart_id": "cart_3310", "item_count": 4, "subtotal": 210.00}
+  },
+  {
+    "service": "payment-service",
+    "event_type": "payment_dispatch",
+    "severity": "info",
+    "timestamp": "2026-11-09T16:00:01.350Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Dispatching charge request to primary acquirer provider=stripe amount=210.00",
+    "metadata": {"provider": "stripe", "amount": 210.00, "currency": "USD"}
+  },
+  {
+    "service": "database-service",
+    "event_type": "lock_escalation",
+    "severity": "warning",
+    "timestamp": "2026-11-09T16:00:02.100Z",
+    "trace_id": "tr-batch-1001",
+    "message": "High lock contention on table accounts_payable: 18 transactions blocked by transaction_id=tx_99182",
+    "metadata": {"table": "accounts_payable", "blocked_tx_count": 18, "blocking_tx": "tx_99182"}
+  },
+  {
+    "service": "database-service",
+    "event_type": "pool_warning",
+    "severity": "warning",
+    "timestamp": "2026-11-09T16:00:03.450Z",
+    "trace_id": "tr-batch-1001",
+    "message": "HikariPool-1 saturation threshold exceeded: 88/100 connections in use. Average acquisition latency=2400ms",
+    "metadata": {"active_connections": 88, "max_connections": 100, "avg_wait_ms": 2400}
   },
   {
     "service": "database-service",
     "event_type": "metric_breach",
     "severity": "critical",
-    "timestamp": "2026-11-09T16:00:01Z",
+    "timestamp": "2026-11-09T16:00:04.015Z",
     "trace_id": "tr-batch-1001",
-    "message": "HikariCP pool size reached maximum limit 100. Connection checkout queue depth is 52."
+    "message": "DatabaseSaturation: HikariCP pool reached maximum capacity (100/100). Connection checkout queue depth=62.",
+    "metadata": {"active_connections": 100, "max_connections": 100, "queue_depth": 62, "saturation_pct": 100.0}
   },
   {
     "service": "payment-service",
     "event_type": "database_error",
     "severity": "error",
-    "timestamp": "2026-11-09T16:00:02Z",
+    "timestamp": "2026-11-09T16:00:05.110Z",
     "trace_id": "tr-batch-1001",
-    "message": "Failed to persist transaction TX-88192: database pool checkout timeout."
+    "message": "HikariPool-1 timeout: 30000ms elapsed acquiring connection to postgres://database-service:5432/jarvis.",
+    "metadata": {"db_host": "database-service:5432", "timeout_ms": 30000, "pool_name": "HikariPool-1"}
+  },
+  {
+    "service": "payment-service",
+    "event_type": "transaction_failure",
+    "severity": "error",
+    "timestamp": "2026-11-09T16:00:05.125Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Failed to persist transaction TX-88192: database pool checkout timeout. Rolling back transaction.",
+    "metadata": {"transaction_id": "TX-88192", "rollback_status": "FAILED"}
   },
   {
     "service": "order-service",
     "event_type": "order_failed",
     "severity": "error",
-    "timestamp": "2026-11-09T16:00:03Z",
+    "timestamp": "2026-11-09T16:00:05.890Z",
     "trace_id": "tr-batch-1001",
-    "message": "Order creation failed for cart #9921 due to payment-service timeout."
+    "message": "Order creation failed for cart #3310: Downstream payment-service returned 504 Gateway Timeout.",
+    "metadata": {"cart_id": "cart_3310", "order_id": "ord_pending_3310", "downstream_error": 504}
   },
   {
     "service": "user-service",
     "event_type": "auth_timeout",
     "severity": "warning",
-    "timestamp": "2026-11-09T16:00:04Z",
+    "timestamp": "2026-11-09T16:00:06.210Z",
     "trace_id": "tr-batch-1001",
-    "message": "Authentication validation latency exceeded 3500ms on database queries."
+    "message": "Authentication validation latency exceeded 3500ms on database queries. User login delayed.",
+    "metadata": {"user_id": "usr_88291", "query_latency_ms": 3520}
+  },
+  {
+    "service": "user-service",
+    "event_type": "login_failure",
+    "severity": "error",
+    "timestamp": "2026-11-09T16:00:07.015Z",
+    "trace_id": "tr-batch-1001",
+    "message": "UserLoginException: Login failed for user_id=usr_88291. Database connection checkout timed out.",
+    "metadata": {"user_id": "usr_88291", "reason": "DB_CONNECTION_TIMEOUT"}
+  },
+  {
+    "service": "api-gateway",
+    "event_type": "downstream_timeout",
+    "severity": "error",
+    "timestamp": "2026-11-09T16:00:07.450Z",
+    "trace_id": "tr-batch-1001",
+    "message": "HTTP 504 Gateway Timeout calling upstream payment-service after 5000ms deadline.",
+    "metadata": {"upstream_service": "payment-service", "status_code": 504, "timeout_limit_ms": 5000}
+  },
+  {
+    "service": "notification-service",
+    "event_type": "outbox_error",
+    "severity": "warning",
+    "timestamp": "2026-11-09T16:00:08.110Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Notification outbox queue write failed: Database connection acquire timeout. Backing off 2000ms.",
+    "metadata": {"queue_backlog": 580, "backoff_ms": 2000}
+  },
+  {
+    "service": "api-gateway",
+    "event_type": "circuit_breaker_open",
+    "severity": "critical",
+    "timestamp": "2026-11-09T16:00:09.005Z",
+    "trace_id": "tr-batch-1001",
+    "message": "CircuitBreaker 'payment-service' state transitioned from CLOSED to OPEN (Failure rate: 84.2%).",
+    "metadata": {"circuit_breaker": "payment-service", "previous_state": "CLOSED", "current_state": "OPEN", "failure_rate": 0.842}
+  },
+  {
+    "service": "payment-service",
+    "event_type": "cascade_summary",
+    "severity": "critical",
+    "timestamp": "2026-11-09T16:00:10.000Z",
+    "trace_id": "tr-batch-1001",
+    "message": "Cross-service cascade confirmed: 168 checkout transactions aborted ($9,840 revenue at risk), 84 failed logins across 5 connected services.",
+    "metadata": {"failed_transactions": 168, "failed_logins": 84, "revenue_at_risk": 9840.00, "impacted_services": ["database-service", "payment-service", "order-service", "user-service", "api-gateway"]}
   }
 ]
-
