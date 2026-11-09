@@ -1,0 +1,11 @@
+# J.A.R.V.I.S. Test Log: Memory Leak & Container OOM Crash
+# Simulates severe memory exhaustion inside payment-service leading to a fatal OutOfMemoryError.
+# All lines share trace_id=tr-mem-9912.
+
+[2026-11-09 10:14:00] [INFO] payment-service: Initializing transaction settlement batch runner worker_id=wk_04 trace_id=tr-mem-9912
+[2026-11-09 10:14:02] [WARNING] payment-service: HighMemoryUsage: JVM heap reached 74.5MB (Limit 80MB, 93.1% allocated). Garbage collector pause time=1240ms. trace_id=tr-mem-9912
+[2026-11-09 10:14:03] [ERROR] payment-service: OutOfMemoryError: Java heap space encountered in com.jarvis.payment.TransactionQueue.enqueueBatch(). trace_id=tr-mem-9912
+[2026-11-09 10:14:04] [CRITICAL] payment-service: Uncaught exception in thread 'pool-3-thread-9': java.lang.OutOfMemoryError. Container jarvis-payment-1 unresponsive. trace_id=tr-mem-9912
+[2026-11-09 10:14:05] [CRITICAL] payment-service: Health probe failed on http://payment-service:8004/health with HTTP 503 Service Unavailable. trace_id=tr-mem-9912
+[2026-11-09 10:14:06] [ERROR] api-gateway: Upstream connection reset by peer on payment-service:8004. trace_id=tr-mem-9912
+

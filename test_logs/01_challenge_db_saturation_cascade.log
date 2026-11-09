@@ -1,0 +1,15 @@
+# J.A.R.V.I.S. Test Log: Challenge Scenario - Shared Database Saturation Cascade
+# Simulates the problem statement where login failures, slow API responses, and failed transactions 
+# occur across distinct microservices due to a common shared database bottleneck.
+# All related lines share trace_id=tr-pay-8821.
+
+[2026-11-09 10:00:00] [INFO] api-gateway: Incoming request POST /api/v1/checkout user_id=usr_99182 trace_id=tr-pay-8821
+[2026-11-09 10:00:01] [INFO] payment-service: Processing charge request for $49.99 on stripe_provider trace_id=tr-pay-8821
+[2026-11-09 10:00:02] [CRITICAL] database-service: Connection pool exhausted. active_connections=100/100, max_connections=100. Waiting requests in queue=48. trace_id=tr-pay-8821
+[2026-11-09 10:00:03] [ERROR] payment-service: HikariCP pool timeout: 30000ms elapsed acquiring connection to postgres://database-service:5432/jarvis. trace_id=tr-pay-8821
+[2026-11-09 10:00:03] [ERROR] payment-service: Transaction aborted. Failed to write ledger entry for amount=$49.99. trace_id=tr-pay-8821
+[2026-11-09 10:00:04] [ERROR] order-service: DB query failed: org.postgresql.util.PSQLException: Connection refused or timed out while updating order_status='COMPLETED'. trace_id=tr-pay-8821
+[2026-11-09 10:00:04] [WARNING] user-service: Session authentication delayed: DB pool checkout latency > 4200ms for user_id=usr_99182. trace_id=tr-pay-8821
+[2026-11-09 10:00:05] [ERROR] api-gateway: Downstream timeout 504 Gateway Timeout calling payment-service /checkout after 5000ms. trace_id=tr-pay-8821
+[2026-11-09 10:00:06] [CRITICAL] payment-service: Cascade detected: 175 checkout transactions failed ($8,748.25 at risk), 95 failed logins. trace_id=tr-pay-8821
+

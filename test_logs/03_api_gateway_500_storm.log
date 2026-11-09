@@ -1,0 +1,11 @@
+# J.A.R.V.I.S. Test Log: HTTP 500 Error Storm & Gateway Circuit Breaker
+# Simulates downstream dependency failure causing a rapid burst of HTTP 500 errors on api-gateway.
+# All lines share trace_id=tr-gw-4401.
+
+[2026-11-09 11:22:10] [INFO] api-gateway: Routing GET /api/v1/orders to order-service:8002 trace_id=tr-gw-4401
+[2026-11-09 11:22:12] [ERROR] api-gateway: HTTP 500 Internal Server Error returned by user-service for auth token validation. trace_id=tr-gw-4401
+[2026-11-09 11:22:14] [ERROR] api-gateway: HttpErrorSpike: Error rate exceeded 15% threshold (48 failures / 60 seconds). trace_id=tr-gw-4401
+[2026-11-09 11:22:15] [WARNING] user-service: Database connection timeout during session query for token=tok_secure_8892. trace_id=tr-gw-4401
+[2026-11-09 11:22:16] [CRITICAL] api-gateway: Circuit breaker state transitioned to OPEN for user-service cluster. Fast-failing incoming traffic. trace_id=tr-gw-4401
+[2026-11-09 11:22:18] [ERROR] api-gateway: Ingress dropped 14 consecutive client requests with HTTP 503 Circuit Breaker Open. trace_id=tr-gw-4401
+
