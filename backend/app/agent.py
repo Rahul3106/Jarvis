@@ -56,7 +56,7 @@ def get_llm():
         return ChatOpenAI(
             base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
             api_key=groq_api_key,
-            model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
             temperature=0.0,
             timeout=30.0
         )
@@ -75,7 +75,7 @@ def get_llm():
 # Initialize LLM instance
 try:
     llm = get_llm()
-    provider_name = f"Groq Cloud ({os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')})" if os.getenv("GROQ_API_KEY") else "Ollama / Local"
+    provider_name = f"Groq Cloud ({os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')})" if os.getenv("GROQ_API_KEY") else "Ollama / Local"
     logger.info(f"LLM initialized pointing to {provider_name}")
 except Exception as e:
     logger.error(f"Failed to initialize LLM: {str(e)}")
