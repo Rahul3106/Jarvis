@@ -8,6 +8,14 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
+try:
+    from dotenv import load_dotenv
+    for env_path in [".env", "backend/.env", "../.env", os.path.join(os.path.dirname(__file__), "..", ".env")]:
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=True)
+except Exception:
+    pass
+
 from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool

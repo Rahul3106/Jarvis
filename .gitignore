@@ -49,6 +49,7 @@ frontend/.env.local
 Thumbs.db
 .vscode/
 .idea/
+*.pdf
 
 # General logs (preserve test_logs suite)
 npm-debug.log*

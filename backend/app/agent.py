@@ -32,21 +32,51 @@ from app.sre_system_prompt import (
 # Logger setup
 logger = logging.getLogger("jarvis-agent")
 
-# LLM Setup
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
-# Normalize base url for OpenAI SDK
-base_url = OLLAMA_HOST if OLLAMA_HOST.endswith("/v1") else f"{OLLAMA_HOST}/v1"
-
-# Initialize LLM
+# Load environment variables (.env)
 try:
-    llm = ChatOpenAI(
+    from dotenv import load_dotenv
+    for env_path in [".env", "backend/.env", "../.env", os.path.join(os.path.dirname(__file__), "..", ".env")]:
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=True)
+except Exception:
+    pass
+
+def get_llm():
+    """Initializes LLM: Groq Cloud (default when GROQ_API_KEY is present) or Ollama local fallback."""
+    try:
+        from dotenv import load_dotenv
+        for env_path in [".env", "backend/.env", "../.env", os.path.join(os.path.dirname(__file__), "..", ".env")]:
+            if os.path.exists(env_path):
+                load_dotenv(env_path, override=True)
+    except Exception:
+        pass
+
+    groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if groq_api_key and groq_api_key != "your_groq_api_key_here":
+        return ChatOpenAI(
+            base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+            api_key=groq_api_key,
+            model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            temperature=0.0,
+            timeout=30.0
+        )
+
+    # Local Ollama fallback
+    ollama_host = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+    base_url = ollama_host if ollama_host.endswith("/v1") else f"{ollama_host}/v1"
+    return ChatOpenAI(
         base_url=base_url,
-        api_key="ollama",  # Ollama doesn't validate keys
-        model="qwen2.5:3b",
+        api_key=os.getenv("OLLAMA_API_KEY", "ollama"),
+        model=os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
         temperature=0.0,
-        timeout=120.0
+        timeout=60.0
     )
-    logger.info(f"LLM initialized pointing to {base_url} using model qwen2.5:3b")
+
+# Initialize LLM instance
+try:
+    llm = get_llm()
+    provider_name = f"Groq Cloud ({os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')})" if os.getenv("GROQ_API_KEY") else "Ollama / Local"
+    logger.info(f"LLM initialized pointing to {provider_name}")
 except Exception as e:
     logger.error(f"Failed to initialize LLM: {str(e)}")
     llm = None
@@ -225,7 +255,7 @@ def send_admin_failure_email(incident_id: str, service: str, alert_name: str, re
             f"{email_body}\n"
             f"```\n"
         )
-        filepath = f"c:/Coding/Web/Hackathons/SentinalOPS/admin_notification_{incident_id}.md"
+        filepath = os.path.abspath(f"admin_notification_{incident_id}.md")
         with open(filepath, "w", encoding="utf-8") as art_f:
             art_f.write(artifact_content)
         log_step(incident_id, f"[Auditor] Created admin notification artifact at '{filepath}'", "INFO")
@@ -660,14 +690,15 @@ def diagnostics_agent_node(state: AgentState) -> AgentState:
     
     diagnosis = _heuristic_diagnosis(alert_name, service, correlated_events, impact_metrics)
     
+    active_llm = get_llm() or llm
     try:
-        if llm:
+        if active_llm:
             user_prompt = build_investigation_prompt(
                 alert_name, service, metrics, health, logs,
                 correlated_events=correlated_events,
                 impact_metrics=impact_metrics
             )
-            response = llm.invoke([
+            response = active_llm.invoke([
                 SystemMessage(content=SRE_SYSTEM_PROMPT),
                 HumanMessage(content=user_prompt)
             ])
@@ -1122,8 +1153,9 @@ def auditor_node(state: AgentState) -> AgentState:
     else:
         log_step(incident_id, "[Auditor] Heuristics Check: Service returned unhealthy status code.", "AGENT_THOUGHT")
         
+    active_llm = get_llm() or llm
     try:
-        if llm:
+        if active_llm:
             prompt = (
                 f"You are the SRE Auditor checking service recovery.\n"
                 f"Service: {service}\n\n"
@@ -1134,7 +1166,7 @@ def auditor_node(state: AgentState) -> AgentState:
                 f"Is the service recovered? Answer with 'YES' if health is 200 OK. Otherwise answer 'NO'.\n"
                 f"Response (YES/NO):"
             )
-            response = llm.invoke([
+            response = active_llm.invoke([
                 SystemMessage(content="You are an SRE checking service recovery. Answer YES or NO."),
                 HumanMessage(content=prompt)
             ])
@@ -1223,8 +1255,9 @@ def auditor_node(state: AgentState) -> AgentState:
         alternatives_str = "* No alternative causes recorded"
     
     report_content = ""
+    active_llm = get_llm() or llm
     try:
-        if llm:
+        if active_llm:
             audit_prompt = build_audit_report_prompt(
                 incident_id=incident_id,
                 service=service,
@@ -1243,7 +1276,7 @@ def auditor_node(state: AgentState) -> AgentState:
                 timeline_str=timeline_str,
                 alternatives_str=alternatives_str
             )
-            response = llm.invoke([
+            response = active_llm.invoke([
                 SystemMessage(content=AUDITOR_SYSTEM_PROMPT),
                 HumanMessage(content=audit_prompt)
             ])
@@ -1323,6 +1356,7 @@ def governance_safety_agent_node(state: AgentState) -> AgentState:
     is_sensitive = is_db_op or is_auth_service or is_user_service or is_payment_service or is_security_sensitive
 
     critical_triggers = []
+    high_triggers = []
     # Database operations, Data deletion, Schema changes, Rebuild actions, DESTROY action
     is_destructive_action = remediation_choice in ["DESTROY", "DESTROY_AND_REBUILD_DATABASE"]
     if is_db_op and is_destructive_action:
@@ -1361,7 +1395,6 @@ def governance_safety_agent_node(state: AgentState) -> AgentState:
             f"Active customer impact: {failed_tx} failed transactions, {failed_lg} failed logins"
         )
 
-    high_triggers = []
     # Confidence < 85%
     if confidence < 85:
         high_triggers.append(f"Diagnosis confidence below 85% ({confidence}%)")
@@ -1440,8 +1473,9 @@ def governance_safety_agent_node(state: AgentState) -> AgentState:
     reason_str = f"Auto-approved: proposed action '{remediation_choice}' poses {risk_level} risk." if approved else f"Halted: proposed action requires human review."
 
     # Perform LLM validation if available
+    active_llm = get_llm() or llm
     try:
-        if llm:
+        if active_llm:
             gov_prompt = build_governance_prompt(
                 incident_id=incident_id,
                 alert_name=alert_name,
@@ -1453,7 +1487,7 @@ def governance_safety_agent_node(state: AgentState) -> AgentState:
                 logs=logs,
                 metrics=metrics
             )
-            response = llm.invoke([
+            response = active_llm.invoke([
                 SystemMessage(content=GOVERNANCE_SYSTEM_PROMPT),
                 HumanMessage(content=gov_prompt)
             ])
@@ -1544,7 +1578,7 @@ def governance_safety_agent_node(state: AgentState) -> AgentState:
                 f"{email_body}\n"
                 f"```\n"
             )
-            filepath = f"c:/Coding/Web/Hackathons/SentinalOPS/approval_request_{incident_id}.md"
+            filepath = os.path.abspath(f"approval_request_{incident_id}.md")
             with open(filepath, "w", encoding="utf-8") as art_f:
                 art_f.write(artifact_content)
             log_step(incident_id, f"[Governance & Safety Agent] Created approval request artifact at '{filepath}'", "INFO")

@@ -55,3 +55,4 @@
 2026-11-09 10:45:23.400 [WARNING] [notify-worker-7] notification-service: Dispatch queue backlog reached 3,120 unsent transactional messages trace_id=tr-live-9901
 2026-11-09 10:45:25.010 [INFO] [prometheus-collector] api-gateway: Emitting metric: http_server_requests_seconds_count{status="504"} = 184 trace_id=tr-live-9901
 2026-11-09 10:45:25.020 [INFO] [prometheus-collector] api-gateway: Emitting metric: http_server_requests_seconds_count{status="500"} = 112 trace_id=tr-live-9901
+
