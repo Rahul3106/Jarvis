@@ -39,7 +39,8 @@ import {
   TrendingDown,
   Users,
   DollarSign,
-  Compass
+  Compass,
+  Printer
 } from "lucide-react";
 
 // Get API base URL
@@ -1601,26 +1602,36 @@ export default function DashboardPage() {
 
                 {/* TAB 6: POST-MORTEM & SRE AUDIT REPORT */}
                 {activeTab === "report" && (
-                  <div className="p-4 bg-[#11131d] border border-[#1e2232] rounded-xl shadow-md space-y-4">
-                    <div className="flex items-center justify-between border-b border-[#1b1e2c] pb-2">
+                  <div className="p-4 bg-[#11131d] border border-[#1e2232] rounded-xl shadow-md space-y-4 printable-report-card">
+                    <div className="flex items-center justify-between border-b border-[#1b1e2c] pb-2 no-print">
                       <span className="text-xs font-bold tracking-normal font-medium text-white flex items-center gap-1.5">
                         <FileText className="h-4 w-4 text-[#1488fc]" />
                         <span>Incident Post-Mortem & SRE Audit</span>
                       </span>
                       {selectedIncident.resolution_action && (
-                        <a
-                          href={`${API_URL}/api/v1/incidents/${selectedIncident.id}/report/download`}
-                          download={`PostMortem-${selectedIncident.id}.md`}
-                          className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#1488fc]/15 text-[#38bdf8] hover:bg-[#1488fc]/25 border border-[#1488fc]/30 transition-all"
-                        >
-                          <Download className="h-3 w-3" />
-                          <span>Export Markdown</span>
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => window.print()}
+                            className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all cursor-pointer"
+                            title="Export Executive PDF / Print"
+                          >
+                            <Printer className="h-3 w-3" />
+                            <span>Export PDF</span>
+                          </button>
+                          <a
+                            href={`${API_URL}/api/v1/incidents/${selectedIncident.id}/report/download`}
+                            download={`PostMortem-${selectedIncident.id}.md`}
+                            className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#1488fc]/15 text-[#38bdf8] hover:bg-[#1488fc]/25 border border-[#1488fc]/30 transition-all"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span>Export Markdown</span>
+                          </a>
+                        </div>
                       )}
                     </div>
 
                     {selectedIncident.resolution_action ? (
-                      <div className="bg-[#07080d] text-[#fcfdff] p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap border border-[#1c1f2e] shadow-inner max-h-[500px]">
+                      <div className="printable-report bg-[#07080d] text-[#fcfdff] p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap border border-[#1c1f2e] shadow-inner max-h-[500px]">
                         {selectedIncident.resolution_action}
                       </div>
                     ) : (

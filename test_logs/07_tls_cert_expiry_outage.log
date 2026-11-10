@@ -1,0 +1,35 @@
+# ==============================================================================
+# J.A.R.V.I.S. Production SRE Telemetry Log: TLS Certificate Expiry Outage
+# Scenario: Ingress & Mutual-TLS Certificate Expiry on Payment Gateway
+# Trace Cluster: tr-tls-9940
+# Cluster: prod-us-east-k8s-cluster-01
+# Affected Services: payment-service, api-gateway, order-service
+# Description: Demonstrates a sudden cascade caused by an expired TLS/SSL 
+#              certificate on the payment acquirer mTLS tunnel, resulting in 
+#              handshake terminations, 502 Bad Gateway responses, and checkout freezes.
+# ==============================================================================
+
+2026-11-10 00:00:01.012 [INFO] [ingress-proxy] api-gateway: TLS handshake succeeded: client_ip=198.51.100.44 cipher=TLS_AES_256_GCM_SHA384 trace_id=tr-tls-9940
+2026-11-10 00:00:01.025 [INFO] [http-worker-01] api-gateway: POST /api/v1/orders/checkout user_id=usr_88192 trace_id=tr-tls-9940
+2026-11-10 00:00:01.038 [INFO] [order-worker-03] order-service: Order initialized order_id=ord_77192 cart_id=cart_8810 amount=$240.00 trace_id=tr-tls-9940
+2026-11-10 00:00:01.050 [INFO] [payment-exec-02] payment-service: Establishing mTLS session with payment acquirer endpoint https://vault.acquirer-pay.net:8443 trace_id=tr-tls-9940
+
+# --- Phase 2: TLS Certificate Expiry Boundary Crossed ---
+2026-11-10 00:00:02.110 [WARNING] [ssl-handshake-engine] payment-service: Remote certificate validation warning: Certificate validity expired at 2026-11-09T23:59:59Z trace_id=tr-tls-9940
+2026-11-10 00:00:02.115 [CRITICAL] [ssl-handshake-engine] payment-service: javax.net.ssl.SSLHandshakeException: PKIX path validation failed: java.security.cert.CertificateExpiredException: NotAfter: Mon Nov 09 23:59:59 UTC 2026 trace_id=tr-tls-9940
+2026-11-10 00:00:02.120 [ERROR] [ssl-handshake-engine] payment-service:     at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:131) trace_id=tr-tls-9940
+2026-11-10 00:00:02.125 [ERROR] [ssl-handshake-engine] payment-service:     at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:371) trace_id=tr-tls-9940
+2026-11-10 00:00:02.130 [ERROR] [ssl-handshake-engine] payment-service:     at java.base/sun.security.ssl.HandshakeContext.fatal(HandshakeContext.java:464) trace_id=tr-tls-9940
+2026-11-10 00:00:02.135 [ERROR] [ssl-handshake-engine] payment-service:     at com.sentinelops.payment.acquirer.TlsTunnelClient.connect(TlsTunnelClient.java:108) trace_id=tr-tls-9940
+2026-11-10 00:00:02.140 [ERROR] [payment-exec-02] payment-service: PaymentAcquirerException: Unable to establish secure channel to acquirer vault. Handshake terminated. trace_id=tr-tls-9940
+2026-11-10 00:00:02.145 [ERROR] [payment-exec-02] payment-service: Transaction aborted: TX-99281 failed due to upstream SSLHandshakeException trace_id=tr-tls-9940
+
+# --- Phase 3: Cascading Failure Across Order and Ingress Gateways ---
+2026-11-10 00:00:03.005 [ERROR] [order-worker-03] order-service: Payment processing rejected for order_id=ord_77192: Downstream payment-service returned 502 Bad Gateway trace_id=tr-tls-9940
+2026-11-10 00:00:03.120 [ERROR] [http-worker-01] api-gateway: HTTP 502 Bad Gateway calling payment-service: Handshake failed to downstream acquirer trace_id=tr-tls-9940
+2026-11-10 00:00:04.220 [ERROR] [payment-exec-05] payment-service: Repeated SSLHandshakeException: 24 consecutive connection attempts failed across all acquirer pool sockets trace_id=tr-tls-9940
+2026-11-10 00:00:05.010 [CRITICAL] [cert-monitor-daemon] payment-service: Alert SSLCertificateExpired firing: Certificate CN=vault.acquirer-pay.net serial=04:A2:8F:11 expired 5 minutes ago trace_id=tr-tls-9940
+2026-11-10 00:00:06.330 [WARNING] [circuit-breaker-engine] api-gateway: CircuitBreaker 'payment-acquirer-tunnel' state changed: CLOSED -> OPEN (100% handshake failure rate) trace_id=tr-tls-9940
+2026-11-10 00:00:07.450 [ERROR] [http-worker-08] api-gateway: HTTP 503 Service Unavailable: Acquirer circuit open due to expired TLS credentials trace_id=tr-tls-9940
+2026-11-10 00:00:08.800 [CRITICAL] [impact-evaluator] payment-service: Customer checkout disruption: 92 payments failed ($5,840 revenue at risk) due to expired acquirer certificate trace_id=tr-tls-9940
+2026-11-10 00:00:10.005 [INFO] [prometheus-metrics-exporter] payment-service: Emitting metric: ssl_handshake_errors_total{reason="certificate_expired"} = 92 trace_id=tr-tls-9940

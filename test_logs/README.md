@@ -14,6 +14,7 @@ This directory contains pre-configured test log files designed to test J.A.R.V.I
 | **`04_structured_cloud_stream.jsonl`** | JSON Lines (JSONL) | Cloud Native Structured Telemetry | Modern streaming JSON lines normalized into standard `Event` records with trace mapping (`trace_id=tr-cloud-7701`). |
 | **`05_multi_service_batch_dump.json`** | JSON Array Batch | Multi-Service Batch Ingestion Dump | JSON telemetry dump covering metric breaches, timeouts, and checkout failures (`trace_id=tr-batch-1001`). |
 | **`06_digital_payment_live_outage_stream.log`** | Plaintext High-Density Stream | End-to-End Enterprise Outage | 100+ line live stream with multi-thread ingress, slow locks, HikariCP exhaustion, and circuit breakers (`trace_id=tr-live-9901`). |
+| **`07_tls_cert_expiry_outage.log`** | Plaintext Application Log | TLS/mTLS Certificate Expiration | `payment-service` PKIX validation failure (`CertificateExpiredException`), 502/503 cascade, and acquirer circuit open (`trace_id=tr-tls-9940`). |
 
 ---
 

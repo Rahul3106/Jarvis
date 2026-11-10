@@ -65,3 +65,33 @@ body {
   border-color: #2e3244;
   box-shadow: 0 4px 24px -2px rgba(20, 136, 252, 0.18);
 }
+
+/* Executive SRE Post-Mortem Print & PDF Styling */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  header, nav, aside, .no-print, button, a[href*="download"] {
+    display: none !important;
+  }
+  .printable-report-card {
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .printable-report {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    font-size: 10pt !important;
+    line-height: 1.6 !important;
+    white-space: pre-wrap !important;
+    padding: 1.5rem !important;
+    border-radius: 8px !important;
+  }
+}
