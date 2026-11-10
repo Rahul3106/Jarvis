@@ -890,12 +890,20 @@ export default function DashboardPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const formatTime = (isoString: string) => {
+  const formatTime = (isoString?: string | null) => {
+    if (!isoString) return "";
     try {
-      const d = new Date(isoString);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const cleanIso = isoString.endsWith("Z") || isoString.includes("+") ? isoString : `${isoString}Z`;
+      const d = new Date(cleanIso);
+      return d.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      }) + " IST";
     } catch {
-      return isoString;
+      return isoString || "";
     }
   };
 
@@ -1032,6 +1040,12 @@ export default function DashboardPage() {
         </nav>
 
         <div className="flex items-center space-x-3">
+          {/* Delhi / India Timezone Badge */}
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 text-[10px] font-mono rounded-lg bg-[#11131e] border border-[#23273c] text-cyan-400">
+            <Clock className="h-3 w-3 text-cyan-400 shrink-0" />
+            <span>Asia/Kolkata (IST · UTC+5:30)</span>
+          </div>
+
           {/* J.A.R.V.I.S. Payment Outage Challenge Scenario Button */}
           <button
             onClick={runPaymentPlatformScenario}

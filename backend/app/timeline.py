@@ -99,9 +99,10 @@ def build_incident_timeline(db: Session, incident_id: str) -> Optional[Dict[str,
             services_seen.append(svc)
 
         ts = ev.timestamp or incident.created_at
+        ts_str = (ts.isoformat() + "Z") if hasattr(ts, "isoformat") and not str(ts.isoformat()).endswith("Z") else str(ts)
         timeline_entries.append({
             "id": f"tl-evt-{ev.id}",
-            "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
+            "timestamp": ts_str,
             "_sort_key": ts,
             "phase": TimelinePhase.DETECTION,
             "entry_type": TimelineEntryType.SYMPTOM_EVENT,
@@ -120,9 +121,10 @@ def build_incident_timeline(db: Session, incident_id: str) -> Optional[Dict[str,
 
     # 2. Add Incident Creation Lifecycle Milestone
     c_ts = incident.created_at or datetime.utcnow()
+    c_ts_str = (c_ts.isoformat() + "Z") if hasattr(c_ts, "isoformat") and not str(c_ts.isoformat()).endswith("Z") else str(c_ts)
     timeline_entries.append({
         "id": f"tl-inc-created-{incident.id}",
-        "timestamp": c_ts.isoformat() if hasattr(c_ts, "isoformat") else str(c_ts),
+        "timestamp": c_ts_str,
         "_sort_key": c_ts,
         "phase": TimelinePhase.LIFECYCLE,
         "entry_type": TimelineEntryType.LIFECYCLE,
@@ -152,9 +154,10 @@ def build_incident_timeline(db: Session, incident_id: str) -> Optional[Dict[str,
                 log_svc = s
                 break
 
+        l_ts_str = (l_ts.isoformat() + "Z") if hasattr(l_ts, "isoformat") and not str(l_ts.isoformat()).endswith("Z") else str(l_ts)
         timeline_entries.append({
             "id": f"tl-log-{l.id}",
-            "timestamp": l_ts.isoformat() if hasattr(l_ts, "isoformat") else str(l_ts),
+            "timestamp": l_ts_str,
             "_sort_key": l_ts,
             "phase": phase,
             "entry_type": entry_type,
