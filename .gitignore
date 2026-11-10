@@ -50,6 +50,10 @@ Thumbs.db
 .vscode/
 .idea/
 *.pdf
+approval_request_*.md
+admin_notification_*.md
+backend/approval_request_*.md
+backend/admin_notification_*.md
 
 # General logs (preserve test_logs suite)
 npm-debug.log*

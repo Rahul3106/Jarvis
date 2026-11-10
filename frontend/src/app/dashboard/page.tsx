@@ -479,6 +479,49 @@ export default function DashboardPage() {
   const [modalUploadStatus, setModalUploadStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [ingestionNotification, setIngestionNotification] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const handleApproveIncident = async () => {
+    if (!selectedIncidentId) return;
+    setIsApproving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/incidents/${selectedIncidentId}/approve`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        const refreshed = await fetch(`${API_URL}/api/v1/incidents`);
+        if (refreshed.ok) {
+          const data = await refreshed.json();
+          setIncidents(data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to approve incident:", err);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleRejectIncident = async () => {
+    if (!selectedIncidentId) return;
+    setIsApproving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/incidents/${selectedIncidentId}/reject`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        const refreshed = await fetch(`${API_URL}/api/v1/incidents`);
+        if (refreshed.ok) {
+          const data = await refreshed.json();
+          setIncidents(data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to reject incident:", err);
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   // Manual event emission form state
   const [manualEventService, setManualEventService] = useState("user-service");
@@ -1310,23 +1353,36 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {selectedIncident?.resolution_action && (
-                <button
-                  onClick={() => {
-                    const element = document.createElement("a");
-                    const file = new Blob([selectedIncident.resolution_action || ""], { type: 'text/markdown' });
-                    element.href = URL.createObjectURL(file);
-                    element.download = `PostMortem-${selectedIncident.id}.md`;
-                    document.body.appendChild(element);
-                    element.click();
-                    document.body.removeChild(element);
-                  }}
-                  className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#1488fc] text-white hover:bg-[#0c70d4] cursor-pointer shadow-xs"
-                >
-                  <Download className="h-3 w-3" />
-                  <span>Post-Mortem</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedIncident?.status === "PENDING_APPROVAL" && (
+                  <button
+                    onClick={handleApproveIncident}
+                    disabled={isApproving}
+                    className="flex items-center space-x-1.5 px-3 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-md transition-all disabled:opacity-50"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    <span>{isApproving ? "Approving..." : "Approve & Execute Fix"}</span>
+                  </button>
+                )}
+
+                {selectedIncident?.resolution_action && (
+                  <button
+                    onClick={() => {
+                      const element = document.createElement("a");
+                      const file = new Blob([selectedIncident.resolution_action || ""], { type: 'text/markdown' });
+                      element.href = URL.createObjectURL(file);
+                      element.download = `PostMortem-${selectedIncident.id}.md`;
+                      document.body.appendChild(element);
+                      element.click();
+                      document.body.removeChild(element);
+                    }}
+                    className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#1488fc] text-white hover:bg-[#0c70d4] cursor-pointer shadow-xs"
+                  >
+                    <Download className="h-3 w-3" />
+                    <span>Post-Mortem</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {selectedIncident ? (
@@ -1346,6 +1402,46 @@ export default function DashboardPage() {
                         </div>
                         {getIncidentStatusBadge(selectedIncident.status)}
                       </div>
+
+                      {/* Human-in-the-Loop Governance Action Banner */}
+                      {selectedIncident.status === "PENDING_APPROVAL" && (
+                        <div className="p-3.5 bg-amber-950/40 border border-amber-500/50 rounded-xl space-y-2.5 shadow-md">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                                <Shield className="h-4 w-4 text-amber-400 animate-pulse" />
+                                <span>Human Approval Required — Safety Governance Gate</span>
+                              </div>
+                              <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                                Remediation plan halted due to assessed <strong className="text-amber-300 font-semibold">{selectedIncident.risk_level || "HIGH"} Risk</strong>. SRE operator authorization is required to proceed with recovery.
+                              </p>
+                            </div>
+                            <span className="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded shrink-0">
+                              ACTION HELD
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-amber-500/20">
+                            <button
+                              onClick={handleApproveIncident}
+                              disabled={isApproving}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-all shadow-sm disabled:opacity-50"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              <span>{isApproving ? "Executing Fix..." : "Approve & Execute Fix"}</span>
+                            </button>
+
+                            <button
+                              onClick={handleRejectIncident}
+                              disabled={isApproving}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#181a24] hover:bg-[#232736] text-slate-300 border border-slate-700/50 cursor-pointer transition-all disabled:opacity-50"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              <span>Reject / Close</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Quantified Business Impact Cards */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">

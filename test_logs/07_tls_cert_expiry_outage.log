@@ -33,3 +33,4 @@
 2026-11-10 00:00:07.450 [ERROR] [http-worker-08] api-gateway: HTTP 503 Service Unavailable: Acquirer circuit open due to expired TLS credentials trace_id=tr-tls-9940
 2026-11-10 00:00:08.800 [CRITICAL] [impact-evaluator] payment-service: Customer checkout disruption: 92 payments failed ($5,840 revenue at risk) due to expired acquirer certificate trace_id=tr-tls-9940
 2026-11-10 00:00:10.005 [INFO] [prometheus-metrics-exporter] payment-service: Emitting metric: ssl_handshake_errors_total{reason="certificate_expired"} = 92 trace_id=tr-tls-9940
+

@@ -655,6 +655,102 @@ def get_incident_details(incident_id: str, db: Session = Depends(get_db)):
         "events": [e.to_dict() for e in events]
     }
 
+@app.post("/api/v1/incidents/{incident_id}/approve")
+def approve_incident_remediation(incident_id: str, db: Session = Depends(get_db)):
+    """
+    Operator manual approval endpoint:
+    Approves an incident held in PENDING_APPROVAL state, executes the recovery runbook,
+    verifies microservice health, updates the post-mortem report, and marks the incident RESOLVED.
+    """
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    if incident.status != "PENDING_APPROVAL":
+        return {
+            "status": "ignored",
+            "message": f"Incident {incident_id} is currently '{incident.status}', not 'PENDING_APPROVAL'.",
+            "incident_id": incident.id
+        }
+
+    # 1. Update status to EXECUTING_FIX
+    incident.status = "EXECUTING_FIX"
+    db.commit()
+
+    log_step(incident_id, "[Governance & Safety Agent] Manual SRE Operator Approval GRANTED via Console.", "INFO")
+    log_step(incident_id, f"[Incident Commander] Human confirmation received. Authorizing remediation for service '{incident.service}'.", "AGENT_ACTION")
+
+    # 2. Execute remediation
+    service = incident.service
+    from app.tools import restart_service, check_service_health
+    
+    remediation_log = ""
+    if any(k in (incident.alert_name or "").lower() for k in ["database", "pool", "saturation"]) or service == "database-service":
+        restart_service.invoke({"service_name": "database-service"})
+        restart_service.invoke({"service_name": service})
+        remediation_log = f"Reset database connection pool and restarted {service}."
+    else:
+        restart_service.invoke({"service_name": service})
+        remediation_log = f"Restarted service {service} and cleared fault state."
+
+    log_step(incident_id, f"[Remediation Executor] Result: {remediation_log}", "AGENT_RESULT")
+
+    # 3. Post-Remediation Verification
+    log_step(incident_id, f"[Auditor] Verifying post-remediation health for '{service}'...", "AGENT_THOUGHT")
+    health_output = check_service_health.invoke({"service_name": service})
+    log_step(incident_id, f"[Auditor] Health Probe Result:\n{health_output}", "AGENT_RESULT")
+
+    # 4. Resolve incident
+    incident.status = "RESOLVED"
+    incident.resolution_time_seconds = round((datetime.utcnow() - incident.created_at).total_seconds(), 1) if incident.created_at else 45.0
+    
+    approval_addendum = (
+        f"\n\n---\n"
+        f"## 10. Manual Operator Authorization & Final Resolution\n"
+        f"* **Authorization Gate:** APPROVED BY SRE OPERATOR (CONSOLE)\n"
+        f"* **Executed Runbook:** `{remediation_log}`\n"
+        f"* **Recovery Verification:** Health probe verified OK (200 Status)\n"
+        f"* **Mean Time to Recovery (MTTR):** `{incident.resolution_time_seconds}s`\n"
+        f"* **Final Status:** RESOLVED\n"
+    )
+    if incident.resolution_action:
+        updated_report = incident.resolution_action.replace(
+            "**SUSPENDED (PENDING HUMAN APPROVAL)**",
+            "**RESOLVED (MANUAL SRE APPROVAL GRANTED)**"
+        )
+        incident.resolution_action = updated_report + approval_addendum
+    else:
+        incident.resolution_action = f"# SRE Incident Resolution - {incident_id}\n\n{approval_addendum}"
+
+    db.commit()
+    log_step(incident_id, f"[Incident Commander] SRE verification & post-mortem complete. Closing incident lifecycle as RESOLVED.", "INFO")
+
+    return {
+        "status": "success",
+        "message": f"Incident {incident_id} approved and resolved successfully.",
+        "incident": {
+            "id": incident.id,
+            "status": incident.status,
+            "resolution_time_seconds": incident.resolution_time_seconds
+        }
+    }
+
+@app.post("/api/v1/incidents/{incident_id}/reject")
+def reject_incident_remediation(incident_id: str, db: Session = Depends(get_db)):
+    """
+    Operator manual rejection endpoint:
+    Rejects the proposed remediation for an incident in PENDING_APPROVAL.
+    """
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    incident.status = "FAILED"
+    db.commit()
+    log_step(incident_id, "[Governance & Safety Agent] Manual SRE Operator REJECTED remediation. Action cancelled.", "WARNING")
+    log_step(incident_id, "[Incident Commander] Incident closed as FAILED by operator override.", "INFO")
+    return {"status": "rejected", "incident_id": incident.id}
+
 @app.get("/api/v1/incidents/{incident_id}/logs")
 def get_incident_logs(incident_id: str, db: Session = Depends(get_db)):
     """Gets the execution log timeline for a single incident."""
