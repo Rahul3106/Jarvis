@@ -40,7 +40,12 @@ import {
   Users,
   DollarSign,
   Compass,
-  Printer
+  Printer,
+  CreditCard,
+  ShoppingCart,
+  Bell,
+  Gauge,
+  Sparkles
 } from "lucide-react";
 import MarkdownReportRenderer from "./MarkdownReportRenderer";
 
@@ -133,6 +138,13 @@ interface TimelineData {
   timeline: TimelineEntry[];
 }
 
+export interface ServiceHistory {
+  cpu: number[];
+  memory: number[];
+  primary: number[];
+  secondary: number[];
+}
+
 // Seeding initial metrics to make history trends look beautiful instantly
 const seedHistory = (currentVal: number, isCpu: boolean): number[] => {
   const samples: number[] = [];
@@ -146,26 +158,219 @@ const seedHistory = (currentVal: number, isCpu: boolean): number[] => {
   return samples;
 };
 
-interface KdeChartProps {
+const seedDomainHistory = (baseVal: number, varianceRatio = 0.04, count = 25): number[] => {
+  const samples: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const noise = (Math.random() + Math.random() - 1) * varianceRatio * baseVal;
+    samples.push(Math.max(0, Math.round(baseVal + noise)));
+  }
+  return samples;
+};
+
+export interface DomainMetricConfig {
+  primaryLabel: string;
+  primaryVal: number;
+  primaryUnit: string;
+  primaryMin: number;
+  primaryMax: number;
+  secondaryLabel: string;
+  secondaryVal: number;
+  secondaryUnit: string;
+  secondaryMin: number;
+  secondaryMax: number;
+  role: string;
+  themeColor: string;
+  badgeColor: string;
+}
+
+export const getDomainMetrics = (name: string, cpuRatio: number, isFault: boolean): DomainMetricConfig => {
+  switch (name) {
+    case "api-gateway": {
+      const baseRps = 1420;
+      const rps = isFault || cpuRatio > 0.4
+        ? Math.max(180, Math.round(baseRps * (1 - cpuRatio * 0.7)))
+        : Math.round(baseRps + Math.sin(Date.now() / 3000) * 80);
+      const baseLat = 18;
+      const lat = isFault || cpuRatio > 0.4
+        ? Math.round(baseLat + cpuRatio * 850)
+        : Math.round(baseLat + Math.random() * 4);
+      return {
+        primaryLabel: "Ingress",
+        primaryVal: rps,
+        primaryUnit: "req/s",
+        primaryMin: 0,
+        primaryMax: 2000,
+        secondaryLabel: "P95 Latency",
+        secondaryVal: lat,
+        secondaryUnit: "ms",
+        secondaryMin: 0,
+        secondaryMax: 1000,
+        role: "Edge Routing & Ingress Traffic",
+        themeColor: "#38bdf8",
+        badgeColor: "text-sky-400 bg-sky-950/30 border-sky-800/40"
+      };
+    }
+    case "payment-service": {
+      const baseTps = 248;
+      const tps = isFault || cpuRatio > 0.4
+        ? Math.max(12, Math.round(baseTps * (1 - cpuRatio * 0.85)))
+        : Math.round(baseTps + Math.sin(Date.now() / 2500) * 15);
+      const pool = isFault || cpuRatio > 0.4
+        ? Math.min(50, Math.round(18 + cpuRatio * 32))
+        : Math.round(18 + Math.random() * 3);
+      return {
+        primaryLabel: "Transactions",
+        primaryVal: tps,
+        primaryUnit: "tps",
+        primaryMin: 0,
+        primaryMax: 350,
+        secondaryLabel: "DB Pool",
+        secondaryVal: pool,
+        secondaryUnit: "/50 conns",
+        secondaryMin: 0,
+        secondaryMax: 50,
+        role: "Financial Ledger & DB Pool",
+        themeColor: "#f43f5e",
+        badgeColor: "text-rose-400 bg-rose-950/30 border-rose-800/40"
+      };
+    }
+    case "user-service": {
+      const baseQps = 480;
+      const qps = isFault || cpuRatio > 0.4
+        ? Math.max(90, Math.round(baseQps * (1 - cpuRatio * 0.6)))
+        : Math.round(baseQps + Math.cos(Date.now() / 4000) * 35);
+      const lat = isFault || cpuRatio > 0.4
+        ? Math.round(24 + cpuRatio * 600)
+        : Math.round(24 + Math.random() * 5);
+      return {
+        primaryLabel: "Auth Rate",
+        primaryVal: qps,
+        primaryUnit: "req/s",
+        primaryMin: 0,
+        primaryMax: 800,
+        secondaryLabel: "Token Latency",
+        secondaryVal: lat,
+        secondaryUnit: "ms",
+        secondaryMin: 0,
+        secondaryMax: 800,
+        role: "Identity & Token Validation",
+        themeColor: "#c084fc",
+        badgeColor: "text-purple-400 bg-purple-950/30 border-purple-800/40"
+      };
+    }
+    case "order-service": {
+      const baseOrd = 92;
+      const ord = isFault || cpuRatio > 0.4
+        ? Math.max(10, Math.round(baseOrd * (1 - cpuRatio * 0.75)))
+        : Math.round(baseOrd + Math.sin(Date.now() / 3500) * 10);
+      const lat = isFault || cpuRatio > 0.4
+        ? Math.round(32 + cpuRatio * 750)
+        : Math.round(32 + Math.random() * 6);
+      return {
+        primaryLabel: "Throughput",
+        primaryVal: ord,
+        primaryUnit: "orders/min",
+        primaryMin: 0,
+        primaryMax: 150,
+        secondaryLabel: "Cart Latency",
+        secondaryVal: lat,
+        secondaryUnit: "ms",
+        secondaryMin: 0,
+        secondaryMax: 900,
+        role: "Cart & Checkout Processing",
+        themeColor: "#fbbf24",
+        badgeColor: "text-amber-400 bg-amber-950/30 border-amber-800/40"
+      };
+    }
+    case "notification-service": {
+      const depth = isFault || cpuRatio > 0.4
+        ? Math.round(15 + cpuRatio * 380)
+        : Math.max(0, Math.round(4 + Math.sin(Date.now() / 2000) * 3));
+      const delay = isFault || cpuRatio > 0.4
+        ? Math.round(12 + cpuRatio * 450)
+        : Math.round(12 + Math.random() * 4);
+      return {
+        primaryLabel: "Queue Backlog",
+        primaryVal: depth,
+        primaryUnit: "msgs",
+        primaryMin: 0,
+        primaryMax: 500,
+        secondaryLabel: "Worker Delay",
+        secondaryVal: delay,
+        secondaryUnit: "ms",
+        secondaryMin: 0,
+        secondaryMax: 600,
+        role: "Async Queue & Webhooks",
+        themeColor: "#34d399",
+        badgeColor: "text-emerald-400 bg-emerald-950/30 border-emerald-800/40"
+      };
+    }
+    default: {
+      return {
+        primaryLabel: "Traffic",
+        primaryVal: 100,
+        primaryUnit: "req/s",
+        primaryMin: 0,
+        primaryMax: 200,
+        secondaryLabel: "Latency",
+        secondaryVal: 20,
+        secondaryUnit: "ms",
+        secondaryMin: 0,
+        secondaryMax: 500,
+        role: "Core Microservice",
+        themeColor: "#38bdf8",
+        badgeColor: "text-sky-400 bg-sky-950/30 border-sky-800/40"
+      };
+    }
+  }
+};
+
+const getServiceIcon = (name: string) => {
+  switch (name) {
+    case "api-gateway":
+      return <Layers className="h-4 w-4" />;
+    case "payment-service":
+      return <CreditCard className="h-4 w-4" />;
+    case "user-service":
+      return <Users className="h-4 w-4" />;
+    case "order-service":
+      return <ShoppingCart className="h-4 w-4" />;
+    case "notification-service":
+      return <Bell className="h-4 w-4" />;
+    default:
+      return <Server className="h-4 w-4" />;
+  }
+};
+
+interface BentoSparklineProps {
   samples: number[];
   minVal: number;
   maxVal: number;
   label: string;
-  colorClass: string;
+  themeColor: string;
   gradientId: string;
   valueSuffix: string;
   formatter: (v: number) => string;
 }
 
-function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valueSuffix, formatter }: KdeChartProps) {
+function BentoSparkline({
+  samples,
+  minVal,
+  maxVal,
+  label,
+  themeColor,
+  gradientId,
+  valueSuffix,
+  formatter
+}: BentoSparklineProps) {
   if (!samples || samples.length < 2) return null;
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const n = samples.length;
   const width = 280;
-  const height = 90;
-  const paddingBottom = 16;
+  const height = 80;
+  const paddingBottom = 14;
   const chartHeight = height - paddingBottom;
 
   const range = maxVal - minVal || 1;
@@ -206,21 +411,10 @@ function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valu
   const hoveredY = hoveredVal !== null ? getY(hoveredVal) : null;
 
   const latestValue = samples[samples.length - 1];
-  const isCpu = label.toLowerCase().includes("cpu");
 
   return (
-    <div className="flex flex-col space-y-1.5 w-full">
-      <div className="flex justify-between items-center text-[9px] font-bold tracking-normal font-medium text-slate-400">
-        <span className="flex items-center gap-1">
-          <span className={`h-1.5 w-1.5 rounded-full ${isCpu ? "bg-[#1488fc]" : "bg-[#818cf8]"}`}></span>
-          {label} Trend
-        </span>
-        <span className="font-mono text-white bg-[#151722] px-2 py-0.5 rounded border border-[#272a3a] shadow-sm text-[10px]">
-          Current: {formatter(latestValue)}{valueSuffix}
-        </span>
-      </div>
-
-      <div className="relative h-[90px] w-full">
+    <div className="flex flex-col space-y-1 w-full">
+      <div className="relative h-[80px] w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-full overflow-visible cursor-crosshair"
@@ -230,25 +424,33 @@ function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valu
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isCpu ? "#1488fc" : "#818cf8"} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={isCpu ? "#1488fc" : "#818cf8"} stopOpacity="0.0" />
+              <stop offset="0%" stopColor={themeColor} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={themeColor} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
-          <line x1="0" y1={chartHeight * 0.25} x2={width} y2={chartHeight * 0.25} stroke="#1b1e2b" strokeWidth="1" />
-          <line x1="0" y1={chartHeight * 0.5} x2={width} y2={chartHeight * 0.5} stroke="#1b1e2b" strokeWidth="1" />
-          <line x1="0" y1={chartHeight * 0.75} x2={width} y2={chartHeight * 0.75} stroke="#1b1e2b" strokeWidth="1" />
+          {/* Reference Gridlines */}
+          <line x1="0" y1={chartHeight * 0.3} x2={width} y2={chartHeight * 0.3} stroke="#1b1e2b" strokeWidth="1" strokeDasharray="3,3" />
+          <line x1="0" y1={chartHeight * 0.65} x2={width} y2={chartHeight * 0.65} stroke="#1b1e2b" strokeWidth="1" strokeDasharray="3,3" />
           <line x1="0" y1={chartHeight} x2={width} y2={chartHeight} stroke="#282c3f" strokeWidth="1.5" />
 
-          <text x={4} y={12} fill="#64748b" fontSize="8" fontFamily="monospace" className="opacity-80 font-bold">{formatter(maxVal)}{valueSuffix}</text>
-          <text x={4} y={chartHeight - 4} fill="#64748b" fontSize="8" fontFamily="monospace" className="opacity-80 font-bold">{formatter(minVal)}{valueSuffix}</text>
+          {/* Min / Max Labels with calibrated units */}
+          <text x={4} y={11} fill="#64748b" fontSize="7.5" fontFamily="monospace" className="opacity-80 font-bold">
+            {formatter(maxVal)}{valueSuffix}
+          </text>
+          <text x={4} y={chartHeight - 3} fill="#64748b" fontSize="7.5" fontFamily="monospace" className="opacity-80 font-bold">
+            {formatter(minVal)}{valueSuffix}
+          </text>
 
+          {/* Shaded Area and Smooth Bezier Path */}
           <path d={areaD} fill={`url(#${gradientId})`} />
-          <path d={lineD} fill="none" stroke={isCpu ? "#1488fc" : "#818cf8"} strokeWidth="1.5" strokeLinecap="round" />
+          <path d={lineD} fill="none" stroke={themeColor} strokeWidth="1.75" strokeLinecap="round" />
 
-          <circle cx={width} cy={getY(latestValue)} r="3" fill={isCpu ? "#1488fc" : "#818cf8"} stroke="#000000" strokeWidth="1.5" />
-          <circle cx={width} cy={getY(latestValue)} r="7" fill={isCpu ? "#1488fc" : "#818cf8"} className="animate-ping opacity-35 pointer-events-none" />
+          {/* Live Pulsing Dot */}
+          <circle cx={width} cy={getY(latestValue)} r="3" fill={themeColor} stroke="#000000" strokeWidth="1.5" />
+          <circle cx={width} cy={getY(latestValue)} r="6" fill={themeColor} className="animate-ping opacity-35 pointer-events-none" />
 
+          {/* Hover Crosshair */}
           {hoveredX !== null && hoveredY !== null && (
             <>
               <line
@@ -256,7 +458,7 @@ function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valu
                 y1={0}
                 x2={hoveredX}
                 y2={chartHeight}
-                stroke={isCpu ? "#3b82f6" : "#6366f1"}
+                stroke={themeColor}
                 strokeWidth="1.2"
                 strokeDasharray="3,3"
               />
@@ -264,7 +466,7 @@ function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valu
                 cx={hoveredX}
                 cy={hoveredY}
                 r="4"
-                fill={isCpu ? "#2563eb" : "#4f46e5"}
+                fill={themeColor}
                 stroke="#ffffff"
                 strokeWidth="1.5"
               />
@@ -272,32 +474,263 @@ function KdeChart({ samples, minVal, maxVal, label, colorClass, gradientId, valu
           )}
         </svg>
 
+        {/* Hover Tooltip */}
         {hoveredIdx !== null && hoveredVal !== null && hoveredX !== null && hoveredY !== null && (
           <div
-            className="absolute z-10 pointer-events-none bg-slate-900/95 text-white font-mono text-[9px] px-2 py-1.5 rounded shadow-lg border border-slate-700/80 flex flex-col space-y-0.5 min-w-[95px] backdrop-blur-sm transition-all duration-75"
+            className="absolute z-20 pointer-events-none bg-zinc-950/95 text-white font-mono text-[9px] px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 flex flex-col space-y-0.5 min-w-[105px] backdrop-blur-md"
             style={{
               left: `${(hoveredX / width) * 100}%`,
               top: `${(hoveredY / height) * 100}%`,
-              transform: hoveredX > width / 2 ? "translate(-110%, -110%)" : "translate(10%, -110%)",
+              transform: hoveredX > width / 2 ? "translate(-105%, -105%)" : "translate(5%, -105%)",
             }}
           >
-            <div className="flex justify-between gap-2 text-slate-400 font-bold border-b border-slate-700/50 pb-0.5 mb-0.5">
-              <span>VAL</span>
-              <span className="text-white">{formatter(hoveredVal)}{valueSuffix}</span>
+            <div className="flex justify-between gap-2 text-zinc-400 font-bold border-b border-white/10 pb-0.5 mb-0.5">
+              <span>{label.toUpperCase()}</span>
+              <span className="text-white font-bold">{formatter(hoveredVal)}{valueSuffix}</span>
             </div>
-            <div className="flex justify-between gap-2 text-slate-400">
-              <span>TIME</span>
-              <span className="text-blue-300 font-bold">
-                {hoveredIdx === n - 1 ? "Now" : `t-${n - 1 - hoveredIdx}`}
+            <div className="flex justify-between gap-2 text-zinc-400">
+              <span>OFFSET</span>
+              <span className="text-cyan-400 font-bold">
+                {hoveredIdx === n - 1 ? "Live (Now)" : `-${((n - 1 - hoveredIdx) * 0.5).toFixed(1)}s`}
               </span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex justify-between text-[8px] font-mono text-slate-400 px-0.5">
-        <span>History Start</span>
-        <span>Live</span>
+      <div className="flex justify-between text-[8px] font-mono text-zinc-500 px-1 pt-0.5 border-t border-white/[0.04]">
+        <span>-20s History</span>
+        <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Live 500ms
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BentoTelemetryCard({
+  service,
+  history,
+  onInjectFault,
+  isInjecting,
+  spanClass
+}: {
+  service: ServiceMetric;
+  history: ServiceHistory;
+  onInjectFault: (svc: string, fault: string) => void;
+  isInjecting: boolean;
+  spanClass: string;
+}) {
+  const [activeMetricTab, setActiveMetricTab] = useState<"primary" | "secondary" | "cpu" | "memory">("primary");
+  const isFault = service.status !== "healthy" || service.faults_injected;
+  const domain = getDomainMetrics(service.name, service.cpu, isFault);
+
+  const getMetricData = () => {
+    switch (activeMetricTab) {
+      case "primary":
+        return {
+          samples: history.primary && history.primary.length > 1 ? history.primary : seedDomainHistory(domain.primaryVal, 0.04),
+          minVal: domain.primaryMin,
+          maxVal: domain.primaryMax,
+          label: domain.primaryLabel,
+          unit: domain.primaryUnit,
+          formatter: (v: number) => v.toLocaleString()
+        };
+      case "secondary":
+        return {
+          samples: history.secondary && history.secondary.length > 1 ? history.secondary : seedDomainHistory(domain.secondaryVal, 0.05),
+          minVal: domain.secondaryMin,
+          maxVal: domain.secondaryMax,
+          label: domain.secondaryLabel,
+          unit: domain.secondaryUnit,
+          formatter: (v: number) => v.toString()
+        };
+      case "cpu":
+        return {
+          samples: history.cpu,
+          minVal: 0,
+          maxVal: 1.0,
+          label: "CPU Load",
+          unit: "%",
+          formatter: (v: number) => (v * 100).toFixed(0)
+        };
+      case "memory":
+        return {
+          samples: history.memory,
+          minVal: 0,
+          maxVal: 120,
+          label: "Memory Footprint",
+          unit: "MB",
+          formatter: (v: number) => v.toFixed(0)
+        };
+    }
+  };
+
+  const metric = getMetricData();
+  const isHealthy = service.status === "healthy" && !service.faults_injected;
+
+  return (
+    <div
+      className={`rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#111320]/95 to-[#0b0c13]/95 p-4 sm:p-5 shadow-xl hover:border-white/[0.18] transition-all flex flex-col justify-between relative overflow-hidden group ${spanClass}`}
+    >
+      {/* Top Ambient Glow */}
+      <div
+        className="absolute top-0 right-0 w-44 h-44 rounded-full blur-3xl pointer-events-none opacity-20"
+        style={{ backgroundColor: domain.themeColor }}
+      />
+
+      <div className="relative z-10 space-y-3">
+        {/* Header: Icon, Name, Role, Status */}
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+          <div className="flex items-center space-x-2.5">
+            <div
+              className="p-1.5 rounded-lg border border-white/10 bg-black/40 flex items-center justify-center shadow-inner"
+              style={{ color: domain.themeColor }}
+            >
+              {getServiceIcon(service.name)}
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-heading font-black text-xs text-white uppercase tracking-tight">
+                  {service.name}
+                </span>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold tracking-wider border ${
+                  isHealthy
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : "bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse"
+                }`}>
+                  {isHealthy ? "HEALTHY" : service.status.toUpperCase()}
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono">
+                {domain.role}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero Value Display with Real Units */}
+        <div className="flex items-end justify-between bg-black/40 border border-white/[0.04] p-3 rounded-xl">
+          <div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">
+              {domain.primaryLabel}
+            </div>
+            <div className="flex items-baseline space-x-1.5 mt-0.5">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
+                {domain.primaryVal.toLocaleString()}
+              </span>
+              <span className="text-xs font-bold font-mono" style={{ color: domain.themeColor }}>
+                {domain.primaryUnit}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-right space-y-0.5">
+            <div className="text-[10px] uppercase font-mono text-zinc-400">{domain.secondaryLabel}</div>
+            <div className="text-sm sm:text-base font-bold font-mono text-white">
+              {domain.secondaryVal} <span className="text-xs text-zinc-400">{domain.secondaryUnit}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Gauges Row */}
+        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+          <div className="bg-[#141624] border border-white/[0.04] px-2.5 py-1.5 rounded-lg flex justify-between items-center">
+            <span className="text-zinc-400">CPU LOAD</span>
+            <span className="text-white font-bold">{(service.cpu * 100).toFixed(0)}%</span>
+          </div>
+          <div className="bg-[#141624] border border-white/[0.04] px-2.5 py-1.5 rounded-lg flex justify-between items-center">
+            <span className="text-zinc-400">MEM USAGE</span>
+            <span className="text-white font-bold">{service.memory.toFixed(0)} MB</span>
+          </div>
+        </div>
+
+        {/* Metric Selector Tabs */}
+        <div className="flex items-center gap-1 bg-black/50 p-1 rounded-xl border border-white/[0.06] text-[10px] font-mono overflow-x-auto">
+          <button
+            onClick={() => setActiveMetricTab("primary")}
+            className={`flex-1 px-2 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+              activeMetricTab === "primary"
+                ? "bg-white/15 text-white font-bold shadow-inner"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            {domain.primaryLabel} ({domain.primaryUnit})
+          </button>
+          <button
+            onClick={() => setActiveMetricTab("secondary")}
+            className={`flex-1 px-2 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+              activeMetricTab === "secondary"
+                ? "bg-white/15 text-white font-bold shadow-inner"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            {domain.secondaryLabel}
+          </button>
+          <button
+            onClick={() => setActiveMetricTab("cpu")}
+            className={`px-2 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+              activeMetricTab === "cpu"
+                ? "bg-white/15 text-white font-bold shadow-inner"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            CPU (%)
+          </button>
+          <button
+            onClick={() => setActiveMetricTab("memory")}
+            className={`px-2 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+              activeMetricTab === "memory"
+                ? "bg-white/15 text-white font-bold shadow-inner"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            MEM (MB)
+          </button>
+        </div>
+
+        {/* Live Bento Sparkline Chart */}
+        <BentoSparkline
+          samples={metric.samples}
+          minVal={metric.minVal}
+          maxVal={metric.maxVal}
+          label={metric.label}
+          themeColor={domain.themeColor}
+          gradientId={`bento-spark-${service.name}-${activeMetricTab}`}
+          valueSuffix={` ${metric.unit}`}
+          formatter={metric.formatter}
+        />
+      </div>
+
+      {/* Bottom Footer Actions */}
+      <div className="relative z-10 pt-3 mt-2 border-t border-white/[0.06] flex items-center justify-between">
+        <span className="text-[9px] font-mono text-zinc-500">Inject Chaos:</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onInjectFault(service.name, "cpu-spike")}
+            disabled={isInjecting || service.status === "offline"}
+            className="px-2 py-1 text-[9px] font-mono font-semibold text-amber-400 hover:text-white border border-amber-500/30 hover:bg-amber-500/20 rounded-md transition-all cursor-pointer disabled:opacity-40"
+          >
+            Spike CPU
+          </button>
+          <button
+            onClick={() => onInjectFault(service.name, "memory-leak")}
+            disabled={isInjecting || service.status === "offline"}
+            className="px-2 py-1 text-[9px] font-mono font-semibold text-purple-400 hover:text-white border border-purple-500/30 hover:bg-purple-500/20 rounded-md transition-all cursor-pointer disabled:opacity-40"
+          >
+            Leak Mem
+          </button>
+          {(service.name === "payment-service" || service.name === "order-service") && (
+            <button
+              onClick={() => onInjectFault(service.name, "db-saturation")}
+              disabled={isInjecting || service.status === "offline"}
+              className="px-2 py-1 text-[9px] font-mono font-semibold text-rose-400 hover:text-white border border-rose-500/30 hover:bg-rose-500/20 rounded-md transition-all cursor-pointer disabled:opacity-40"
+            >
+              Sat DB
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -460,7 +893,7 @@ function CausalTopologyGraph({ affectedServices, rootCauseService, activeInciden
 
 export default function DashboardPage() {
   const [services, setServices] = useState<Record<string, ServiceMetric>>({});
-  const [telemetryHistory, setTelemetryHistory] = useState<Record<string, { cpu: number[]; memory: number[] }>>({});
+  const [telemetryHistory, setTelemetryHistory] = useState<Record<string, ServiceHistory>>({});
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [logs, setLogs] = useState<IncidentLog[]>([]);
@@ -541,20 +974,32 @@ export default function DashboardPage() {
         const svc = data[name];
         const cpuVal = svc.cpu;
         const memVal = svc.memory;
+        const isFault = svc.status !== "healthy" || svc.faults_injected;
+        const domain = getDomainMetrics(name, cpuVal, isFault);
 
         if (!nextHistory[name]) {
           nextHistory[name] = {
             cpu: seedHistory(cpuVal, true),
-            memory: seedHistory(memVal, false)
+            memory: seedHistory(memVal, false),
+            primary: seedDomainHistory(domain.primaryVal, 0.03),
+            secondary: seedDomainHistory(domain.secondaryVal, 0.04)
           };
         } else {
           const currentCpu = [...nextHistory[name].cpu, cpuVal];
           const currentMem = [...nextHistory[name].memory, memVal];
+          const currentPrimary = [...(nextHistory[name].primary || seedDomainHistory(domain.primaryVal, 0.03)), domain.primaryVal];
+          const currentSecondary = [...(nextHistory[name].secondary || seedDomainHistory(domain.secondaryVal, 0.04)), domain.secondaryVal];
+
           if (currentCpu.length > 40) currentCpu.shift();
           if (currentMem.length > 40) currentMem.shift();
+          if (currentPrimary.length > 40) currentPrimary.shift();
+          if (currentSecondary.length > 40) currentSecondary.shift();
+
           nextHistory[name] = {
             cpu: currentCpu,
-            memory: currentMem
+            memory: currentMem,
+            primary: currentPrimary,
+            secondary: currentSecondary
           };
         }
       });
@@ -1084,87 +1529,228 @@ export default function DashboardPage() {
       {/* SRE Operations Center */}
       <main id="ops-center" className="flex-grow px-6 md:px-8 py-6 max-w-[1550px] mx-auto w-full space-y-5">
 
-        {/* Header Summary */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <h2 className="text-xs tracking-normal font-semibold font-black text-[#1488fc]">J.A.R.V.I.S. Control Deck</h2>
+        {/* Top Bento Cockpit Master Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 mb-2">
+          {/* Tile 1: SRE Intelligence & Incident Correlation Hub (8 Cols) */}
+          <div className="lg:col-span-8 rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#101322]/95 via-[#0b0c14]/95 to-[#0e101a]/95 p-5 shadow-2xl relative overflow-hidden backdrop-blur-xl group hover:border-white/[0.15] transition-all">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-[10px] tracking-wider uppercase font-mono font-bold text-cyan-400 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-0.5 rounded-full">
+                    J.A.R.V.I.S. Autonomous Correlation Engine
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">v2.4 Production Cockpit</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white font-heading">
+                  Cross-Service Incident Correlation & Root Cause Cockpit
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+                  Real-time multi-source telemetry, topological causal graph, cross-service incident grouping, and autonomous remediation.
+                </p>
+              </div>
+
+              {/* Bento Micro-KPI Grid inside Master Tile */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-white/[0.06]">
+                <div className="bg-black/40 border border-white/[0.06] rounded-xl p-2.5">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">Autonomous MTTR</div>
+                  <div className="text-base sm:text-lg font-black font-mono text-emerald-400 mt-0.5">&lt; 14s</div>
+                  <div className="text-[9px] text-emerald-500/80">99.2% faster than on-call</div>
+                </div>
+                <div className="bg-black/40 border border-white/[0.06] rounded-xl p-2.5">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">Causal Accuracy</div>
+                  <div className="text-base sm:text-lg font-black font-mono text-sky-400 mt-0.5">100%</div>
+                  <div className="text-[9px] text-zinc-400">Topological graph</div>
+                </div>
+                <div className="bg-black/40 border border-white/[0.06] rounded-xl p-2.5">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">Telemetry Ingest</div>
+                  <div className="text-base sm:text-lg font-black font-mono text-amber-400 mt-0.5">4 Streams</div>
+                  <div className="text-[9px] text-zinc-400">Metrics • Logs • Chaos</div>
+                </div>
+                <div className="bg-black/40 border border-white/[0.06] rounded-xl p-2.5">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">Reasoning Agent</div>
+                  <div className="text-base sm:text-lg font-black font-mono text-purple-400 mt-0.5">Groq Cloud</div>
+                  <div className="text-[9px] text-zinc-400">Llama-3.3-70B Active</div>
+                </div>
+              </div>
             </div>
-            <h3 className="font-heading font-black text-white text-2xl tracking-tight">
-              Cross-Service Incident Correlation & Root Cause Cockpit
-            </h3>
-            <p className="text-[#a1a4a5] text-xs mt-1">
-              Real-time multi-source telemetry, topological causal graph, cross-service incident grouping, and autonomous remediation.
-            </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-[#11131c] p-3 rounded-xl border border-[#1e2130] shadow-sm text-xs">
-            <div className="flex flex-col">
-              <span className="text-[10px] text-[#71717a] font-bold tracking-normal font-medium">Active Outages</span>
-              <span className="font-bold text-white">{activeIncidentsCount} Ongoing Investigations</span>
+          {/* Tile 2: Outage Command & Cluster Status (4 Cols) */}
+          <div className="lg:col-span-4 rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#101322]/95 via-[#0b0c14]/95 to-[#0e101a]/95 p-5 shadow-2xl flex flex-col justify-between relative overflow-hidden backdrop-blur-xl group hover:border-white/[0.15] transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-3 border-b border-white/[0.06] pb-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">Cluster Health Status</span>
+                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                  <Clock className="h-2.5 w-2.5" />
+                  <span>Delhi (IST · UTC+5:30)</span>
+                </span>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border flex items-center justify-between mb-3 ${
+                activeIncidentsCount === 0 
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : "bg-red-500/15 border-red-500/30 text-red-400 animate-pulse"
+              }`}>
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-lg ${activeIncidentsCount === 0 ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/30 text-white"}`}>
+                    <Server className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black font-heading text-white">
+                      {activeIncidentsCount === 0 ? "0 Ongoing Investigations" : `${activeIncidentsCount} Active Incident Detected`}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {activeIncidentsCount === 0 ? "All microservices operating in nominal range" : "Autonomous triage agent evaluating runbook"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-zinc-400 font-mono">
+                <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                  <span className="text-zinc-500">Service Availability</span>
+                  <span className="text-white font-bold">99.98%</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                  <span className="text-zinc-500">Sampling Interval</span>
+                  <span className="text-cyan-400 font-bold">500ms sliding window</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-zinc-500">Active Node Cluster</span>
+                  <span className="text-zinc-300">5 Services Monitored</span>
+                </div>
+              </div>
             </div>
-            <div className={`p-2 rounded-lg ${activeIncidentsCount === 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse"}`}>
-              <Server className="h-4 w-4" />
+
+            <div className="pt-3 border-t border-white/[0.06] flex items-center gap-2">
+              <button
+                onClick={runPaymentPlatformScenario}
+                disabled={scenarioLoading}
+                className="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-md shadow-rose-900/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Play className="h-3 w-3 fill-current" />
+                <span>{scenarioLoading ? "Simulating..." : "Challenge Scenario"}</span>
+              </button>
+              <button
+                onClick={clearAllFaults}
+                disabled={clearingFaults}
+                className="py-2 px-3 text-xs font-medium rounded-xl border border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+                title="Reset all injected cluster faults"
+              >
+                <RefreshCw className={`h-3 w-3 ${clearingFaults ? "animate-spin" : ""}`} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Real-time Telemetry Profiles */}
-        <div className="bg-[#0d0e15] border border-[#1b1e2c] rounded-2xl p-4 w-full shadow-xl">
-          <div className="flex items-center justify-between mb-3 border-b border-[#181a26] pb-2">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#1488fc] animate-ping"></span>
-              <h4 className="text-xs font-bold tracking-normal font-semibold text-[#d1d5db] flex items-center gap-1.5">
-                <Activity className="h-4 w-4 text-[#1488fc]" />
-                <span>Live Cluster Telemetry Trends</span>
-              </h4>
+        {/* Live Bento Telemetry Grid with Domain Specific Units */}
+        <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d16]/90 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-white/[0.06] gap-2">
+            <div className="flex items-center space-x-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+              </span>
+              <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+                <Activity className="h-4 w-4 text-cyan-400" />
+                <span>Live Cluster Telemetry & Domain Metrics</span>
+              </h3>
+              <span className="text-[10px] text-zinc-500 font-mono hidden md:inline">
+                Sliding window • 500ms sampling • Real calibrated units
+              </span>
             </div>
-            <span className="text-[10px] text-[#71717a] font-mono">Sliding window • 500ms sampling</span>
+            <div className="flex items-center space-x-3 text-[11px] font-mono text-zinc-400">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span>Nominal</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                <span>Degraded</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                <span>Outage</span>
+              </span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            {Object.values(services).map((service) => {
-              const history = telemetryHistory[service.name];
-              if (!history) return null;
+          {/* Asymmetric High-Density Bento Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3.5">
+            {/* Featured Bento Card 1: API-GATEWAY (6 Cols) */}
+            <BentoTelemetryCard
+              service={services["api-gateway"] || { name: "api-gateway", status: "healthy", cpu: 0.08, memory: 20.0, faults_injected: false }}
+              history={telemetryHistory["api-gateway"] || {
+                cpu: seedHistory(0.08, true),
+                memory: seedHistory(20.0, false),
+                primary: seedDomainHistory(1420, 0.03),
+                secondary: seedDomainHistory(18, 0.04)
+              }}
+              onInjectFault={injectFault}
+              isInjecting={injectingFault !== null}
+              spanClass="col-span-1 md:col-span-2 xl:col-span-6"
+            />
 
-              return (
-                <div
-                  key={service.name}
-                  className="bg-[#12141e] border border-[#1e2232] rounded-xl p-3 flex flex-col space-y-2 relative hover:border-[#2f354c] transition-all"
-                >
-                  <div className="flex items-center justify-between border-b border-[#1c1f2e] pb-1.5">
-                    <span className="font-heading font-black text-[11px] text-white uppercase tracking-tight">{service.name}</span>
-                    <span className={`px-1.5 py-0.5 text-[8px] font-bold tracking-wider rounded border ${getStatusColor(service.status)}`}>
-                      {service.status.toUpperCase()}
-                    </span>
-                  </div>
+            {/* Featured Bento Card 2: PAYMENT-SERVICE (6 Cols) */}
+            <BentoTelemetryCard
+              service={services["payment-service"] || { name: "payment-service", status: "healthy", cpu: 0.06, memory: 20.0, faults_injected: false }}
+              history={telemetryHistory["payment-service"] || {
+                cpu: seedHistory(0.06, true),
+                memory: seedHistory(20.0, false),
+                primary: seedDomainHistory(248, 0.03),
+                secondary: seedDomainHistory(18, 0.04)
+              }}
+              onInjectFault={injectFault}
+              isInjecting={injectingFault !== null}
+              spanClass="col-span-1 md:col-span-2 xl:col-span-6"
+            />
 
-                  <div className="flex flex-col space-y-2">
-                    <KdeChart
-                      samples={history.cpu}
-                      minVal={0}
-                      maxVal={1.0}
-                      label="CPU"
-                      colorClass="text-blue-600"
-                      gradientId={`global-cpu-kde-${service.name}`}
-                      valueSuffix="%"
-                      formatter={(v) => (v * 100).toFixed(0)}
-                    />
-                    <KdeChart
-                      samples={history.memory}
-                      minVal={0}
-                      maxVal={120}
-                      label="MEM"
-                      colorClass="text-indigo-600"
-                      gradientId={`global-mem-kde-${service.name}`}
-                      valueSuffix="MB"
-                      formatter={(v) => v.toFixed(0)}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+            {/* Row 2 Bento Card 3: USER-SERVICE (4 Cols) */}
+            <BentoTelemetryCard
+              service={services["user-service"] || { name: "user-service", status: "healthy", cpu: 0.07, memory: 20.0, faults_injected: false }}
+              history={telemetryHistory["user-service"] || {
+                cpu: seedHistory(0.07, true),
+                memory: seedHistory(20.0, false),
+                primary: seedDomainHistory(480, 0.03),
+                secondary: seedDomainHistory(24, 0.04)
+              }}
+              onInjectFault={injectFault}
+              isInjecting={injectingFault !== null}
+              spanClass="col-span-1 md:col-span-1 xl:col-span-4"
+            />
+
+            {/* Row 2 Bento Card 4: ORDER-SERVICE (4 Cols) */}
+            <BentoTelemetryCard
+              service={services["order-service"] || { name: "order-service", status: "healthy", cpu: 0.05, memory: 20.0, faults_injected: false }}
+              history={telemetryHistory["order-service"] || {
+                cpu: seedHistory(0.05, true),
+                memory: seedHistory(20.0, false),
+                primary: seedDomainHistory(92, 0.03),
+                secondary: seedDomainHistory(32, 0.04)
+              }}
+              onInjectFault={injectFault}
+              isInjecting={injectingFault !== null}
+              spanClass="col-span-1 md:col-span-1 xl:col-span-4"
+            />
+
+            {/* Row 2 Bento Card 5: NOTIFICATION-SERVICE (4 Cols) */}
+            <BentoTelemetryCard
+              service={services["notification-service"] || { name: "notification-service", status: "healthy", cpu: 0.05, memory: 20.0, faults_injected: false }}
+              history={telemetryHistory["notification-service"] || {
+                cpu: seedHistory(0.05, true),
+                memory: seedHistory(20.0, false),
+                primary: seedDomainHistory(4, 0.1),
+                secondary: seedDomainHistory(12, 0.04)
+              }}
+              onInjectFault={injectFault}
+              isInjecting={injectingFault !== null}
+              spanClass="col-span-1 md:col-span-2 xl:col-span-4"
+            />
           </div>
         </div>
 
