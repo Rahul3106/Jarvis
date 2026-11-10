@@ -49,8 +49,10 @@ import {
 } from "lucide-react";
 import MarkdownReportRenderer from "./MarkdownReportRenderer";
 
-// Get API base URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Get API base URL with mixed-content HTTPS auto-resolution
+const API_URL = typeof window !== "undefined" && window.location.protocol === "https:" && (process.env.NEXT_PUBLIC_API_URL || "").startsWith("http://")
+  ? ""
+  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
 interface ServiceMetric {
   name: string;
@@ -1073,7 +1075,10 @@ export default function DashboardPage() {
 
     const connectWs = () => {
       try {
-        const wsUrl = API_URL.replace(/^http/, "ws") + "/api/v1/simulation/ws";
+        const wsBase = API_URL 
+          ? API_URL.replace(/^http/, "ws") 
+          : (typeof window !== "undefined" ? (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host : "ws://localhost:8000");
+        const wsUrl = `${wsBase}/api/v1/simulation/ws`;
         console.log(`Connecting to SRE Telemetry WebSocket: ${wsUrl}`);
         ws = new WebSocket(wsUrl);
 

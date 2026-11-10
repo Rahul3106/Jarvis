@@ -288,7 +288,9 @@ export default function Home() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lenisRef = useRef<Lenis | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API_URL = typeof window !== "undefined" && window.location.protocol === "https:" && (process.env.NEXT_PUBLIC_API_URL || "").startsWith("http://")
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
   // Initialize Lenis smooth scrolling for home page
   useEffect(() => {
