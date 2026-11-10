@@ -317,79 +317,79 @@ def run_agent_workflow(incident_id: str, service: str, alert_name: str):
     with _agent_workflow_lock:
         logger.info(f"Acquired lock: Starting LangGraph workflow for incident {incident_id}")
         try:
-        db = SessionLocal()
-        correlated_events = []
-        impact_metrics = {}
-        try:
-            evts = db.query(Event).filter(Event.incident_id == incident_id).order_by(Event.timestamp.asc()).all()
-            correlated_events = [e.to_dict() for e in evts]
+            db = SessionLocal()
+            correlated_events = []
+            impact_metrics = {}
+            try:
+                evts = db.query(Event).filter(Event.incident_id == incident_id).order_by(Event.timestamp.asc()).all()
+                correlated_events = [e.to_dict() for e in evts]
 
-            inc = db.query(Incident).filter(Incident.id == incident_id).first()
-            if inc:
-                tx = inc.failed_transactions or 0
-                lg = inc.failed_logins or 0
-                impact_metrics = {
-                    "failed_transactions": tx,
-                    "failed_logins": lg,
-                    "estimated_revenue_at_risk_usd": round(tx * 49.99, 2),
-                    "estimated_users_affected": tx + lg,
-                    "impact_summary": inc.impact_summary or "",
-                    "is_measured": True
-                }
-        finally:
-            db.close()
+                inc = db.query(Incident).filter(Incident.id == incident_id).first()
+                if inc:
+                    tx = inc.failed_transactions or 0
+                    lg = inc.failed_logins or 0
+                    impact_metrics = {
+                        "failed_transactions": tx,
+                        "failed_logins": lg,
+                        "estimated_revenue_at_risk_usd": round(tx * 49.99, 2),
+                        "estimated_users_affected": tx + lg,
+                        "impact_summary": inc.impact_summary or "",
+                        "is_measured": True
+                    }
+            finally:
+                db.close()
 
-        initial_state = {
-            "incident_id": incident_id,
-            "service": service,
-            "alert_name": alert_name,
-            "status": "INVESTIGATING",
-            "root_cause": None,
-            "confidence": None,
-            "severity": None,
-            "risk_level": None,
-            "evidence": None,
-            "affected_services": None,
-            "reasoning_summary": None,
-            "remediation_choice": None,
-            "remediation_result": None,
-            "verification_success": None,
-            "incident_report": None,
-            "next_agent": None,
-            "analyzer_logs": None,
-            "analyzer_metrics": None,
-            "analyzer_health": None,
-            "governance_approved": None,
-            "governance_reason": None,
-            "correlated_events": correlated_events,
-            "impact_metrics": impact_metrics,
-            "alternative_causes": None
-        }
-        # Execute compiled LangGraph workflow
-        agent_app.invoke(initial_state)
-    except Exception as e:
-        logger.error(f"Error executing agent workflow for {incident_id}: {str(e)}")
-        log_step(incident_id, f"Agent workflow execution crashed: {str(e)}", "ERROR")
-        
-        # Mark incident failed
-        db = SessionLocal()
-        try:
-            incident = db.query(Incident).filter(Incident.id == incident_id).first()
-            if incident:
-                incident.status = "FAILED"
-                db.commit()
-        except Exception as db_err:
-            logger.error(f"Failed to update crashed incident status: {db_err}")
-        finally:
-            db.close()
+            initial_state = {
+                "incident_id": incident_id,
+                "service": service,
+                "alert_name": alert_name,
+                "status": "INVESTIGATING",
+                "root_cause": None,
+                "confidence": None,
+                "severity": None,
+                "risk_level": None,
+                "evidence": None,
+                "affected_services": None,
+                "reasoning_summary": None,
+                "remediation_choice": None,
+                "remediation_result": None,
+                "verification_success": None,
+                "incident_report": None,
+                "next_agent": None,
+                "analyzer_logs": None,
+                "analyzer_metrics": None,
+                "analyzer_health": None,
+                "governance_approved": None,
+                "governance_reason": None,
+                "correlated_events": correlated_events,
+                "impact_metrics": impact_metrics,
+                "alternative_causes": None
+            }
+            # Execute compiled LangGraph workflow
+            agent_app.invoke(initial_state)
+        except Exception as e:
+            logger.error(f"Error executing agent workflow for {incident_id}: {str(e)}")
+            log_step(incident_id, f"Agent workflow execution crashed: {str(e)}", "ERROR")
             
-        # Send admin failure email
-        send_admin_failure_email(
-            incident_id=incident_id,
-            service=service,
-            alert_name=alert_name,
-            reason=f"Agent workflow execution crashed: {str(e)}"
-        )
+            # Mark incident failed
+            db = SessionLocal()
+            try:
+                incident = db.query(Incident).filter(Incident.id == incident_id).first()
+                if incident:
+                    incident.status = "FAILED"
+                    db.commit()
+            except Exception as db_err:
+                logger.error(f"Failed to update crashed incident status: {db_err}")
+            finally:
+                db.close()
+                
+            # Send admin failure email
+            send_admin_failure_email(
+                incident_id=incident_id,
+                service=service,
+                alert_name=alert_name,
+                reason=f"Agent workflow execution crashed: {str(e)}"
+            )
 
 # WebSocket Connection Manager
 class ConnectionManager:
