@@ -353,33 +353,31 @@ export default function Home() {
         }}
       />
 
-      {/* Resend Minimal Navigation */}
-      <header className="border-b border-[#16171d] bg-[#000000]/80 backdrop-blur-md px-6 md:px-12 py-3.5 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#ff801f] to-[#ff4500] p-0.5 flex items-center justify-center resend-amber-glow">
-            <div className="w-full h-full bg-[#000000] rounded-[7px] flex items-center justify-center text-[#ff801f]">
-              <Activity className="h-4 w-4" />
+      {/* Resend Minimal Navigation - Slim Premium Navbar */}
+      <header className="border-b border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 sm:px-8 py-2.5 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 p-[1px] flex items-center justify-center shadow-sm shadow-orange-500/25">
+            <div className="w-full h-full bg-black rounded-[7px] flex items-center justify-center text-orange-400">
+              <Activity className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-base font-black tracking-tight text-[#fcfdff]">J.A.R.V.I.S.</span>
-          </div>
+          <span className="text-[13px] font-bold tracking-tight text-white">J.A.R.V.I.S.</span>
         </div>
 
-        <nav className="hidden md:flex items-center space-x-8 text-xs font-medium text-[#a1a4a5]">
-          <a href="#problem" className="hover:text-white transition-colors">Problem Statement</a>
-          <a href="#simulator" className="hover:text-white transition-colors">Live Simulation</a>
-          <a href="#architecture" className="hover:text-white transition-colors">Correlation Engine</a>
-          <a href="#benchmarks" className="hover:text-white transition-colors">Benchmarks</a>
+        <nav className="hidden md:flex items-center space-x-8 text-[12px] font-medium text-zinc-400">
+          <a href="#problem" className="hover:text-white transition-colors duration-150">Problem Statement</a>
+          <a href="#simulator" className="hover:text-white transition-colors duration-150">Live Simulation</a>
+          <a href="#architecture" className="hover:text-white transition-colors duration-150">Correlation Engine</a>
+          <a href="#benchmarks" className="hover:text-white transition-colors duration-150">Benchmarks</a>
         </nav>
 
         <div className="flex items-center space-x-3">
           <Link
             href="/dashboard"
-            className="group relative inline-flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg bg-[#ffffff] text-[#000000] hover:bg-[#f0f0f2] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff801f]"
+            className="group relative inline-flex items-center space-x-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-white text-zinc-950 hover:bg-zinc-100 shadow-[0_0_14px_rgba(255,255,255,0.15)] hover:shadow-[0_0_20px_rgba(255,255,255,0.25)] transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <span>Launch SRE Console</span>
-            <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform duration-150" />
+            <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform duration-150" />
           </Link>
         </div>
       </header>

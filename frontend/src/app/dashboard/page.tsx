@@ -1013,53 +1013,51 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Top Cockpit Navbar */}
-      <header className="border-b border-[#1b1e2c] bg-[#0c0d14]/90 backdrop-blur-md px-6 md:px-8 py-3.5 flex items-center justify-between sticky top-0 z-40">
-        <Link href="/" className="flex items-center space-x-3 cursor-pointer group">
-          <div className="p-2 rounded-lg bg-[#1488fc]/10 border border-[#1488fc]/30 text-[#1488fc] group-hover:bg-[#1488fc] group-hover:text-white transition-all duration-200">
-            <Activity className="h-5 w-5 animate-pulse" />
+      {/* Top Cockpit Navbar - Slim Premium */}
+      <header className="border-b border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 sm:px-6 py-2 flex items-center justify-between sticky top-0 z-40">
+        <Link href="/" className="flex items-center space-x-2.5 cursor-pointer group">
+          <div className="w-7 h-7 rounded-lg bg-[#1488fc]/15 border border-[#1488fc]/30 text-[#38bdf8] group-hover:bg-[#1488fc] group-hover:text-white transition-all duration-150 flex items-center justify-center">
+            <Activity className="h-3.5 w-3.5" />
           </div>
-          <div>
-            <h1 className="text-base font-heading font-black tracking-tight text-white flex items-center space-x-2">
-              <span>J.A.R.V.I.S.</span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-[#1488fc]/15 text-[#38bdf8] border border-[#1488fc]/30 tracking-normal font-semibold font-mono">
-                SRE COCKPIT
-              </span>
-            </h1>
+          <div className="flex items-center space-x-2">
+            <span className="text-[13px] font-heading font-black tracking-tight text-white">J.A.R.V.I.S.</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#1488fc]/15 text-[#38bdf8] border border-[#1488fc]/30 tracking-wider font-semibold font-mono">
+              COCKPIT
+            </span>
           </div>
         </Link>
 
         {/* Center menu navigation links */}
-        <nav className="hidden md:flex space-x-8 text-xs font-bold tracking-wider text-[#a1a4a5] font-sans">
-          <Link href="/" className="hover:text-white transition-colors uppercase">Home</Link>
-          <Link href="/dashboard" className="text-[#38bdf8] transition-colors uppercase font-extrabold border-b-2 border-[#1488fc] pb-1">Console</Link>
-          <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors uppercase flex items-center gap-1">
+        <nav className="hidden md:flex space-x-7 text-[12px] font-medium tracking-wide text-zinc-400 font-sans">
+          <Link href="/" className="hover:text-white transition-colors duration-150">Home</Link>
+          <Link href="/dashboard" className="text-[#38bdf8] font-bold border-b border-[#1488fc] pb-0.5">Console</Link>
+          <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors duration-150 flex items-center gap-1">
             <span>API Docs</span>
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="h-2.5 w-2.5" />
           </a>
         </nav>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           {/* Delhi / India Timezone Badge */}
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 text-[10px] font-mono rounded-lg bg-[#11131e] border border-[#23273c] text-cyan-400">
-            <Clock className="h-3 w-3 text-cyan-400 shrink-0" />
-            <span>Asia/Kolkata (IST · UTC+5:30)</span>
+          <div className="hidden lg:flex items-center space-x-1.5 px-2 py-1 text-[9px] font-mono rounded-md bg-[#11131e] border border-[#23273c] text-cyan-400">
+            <Clock className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
+            <span>IST · UTC+5:30</span>
           </div>
 
           {/* J.A.R.V.I.S. Payment Outage Challenge Scenario Button */}
           <button
             onClick={runPaymentPlatformScenario}
             disabled={scenarioLoading}
-            className="flex items-center space-x-1.5 px-4 py-2 text-xs font-bold tracking-wider bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white rounded-lg transition-all duration-200 disabled:opacity-50 shadow-md shadow-rose-900/30 cursor-pointer animate-pulse"
+            className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white rounded-lg transition-all duration-150 disabled:opacity-50 shadow-sm shadow-rose-900/30 cursor-pointer"
           >
-            <Play className="h-3 w-3 fill-current" />
-            <span>{scenarioLoading ? "Triggering..." : "Challenge Scenario"}</span>
+            <Play className="h-2.5 w-2.5 fill-current" />
+            <span>{scenarioLoading ? "Running..." : "Challenge Scenario"}</span>
           </button>
 
           {/* Ingestion Console Modal Toggle */}
           <button
             onClick={() => setShowIngestionModal(true)}
-            className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold tracking-wider bg-[#141622] hover:bg-[#1d2030] text-[#d1d5db] hover:text-white rounded-lg transition-all cursor-pointer border border-[#26293b]"
+            className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-[#141622] hover:bg-[#1d2030] text-zinc-300 hover:text-white rounded-lg transition-all cursor-pointer border border-[#26293b]"
           >
             <Upload className="h-3 w-3 text-[#1488fc]" />
             <span>Ingest Data</span>
@@ -1069,9 +1067,9 @@ export default function DashboardPage() {
           <button
             onClick={clearAllFaults}
             disabled={clearingFaults}
-            className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold tracking-wider border border-[#26293b] text-[#a1a4a5] hover:bg-[#141622] hover:text-white rounded-lg transition-all duration-200 disabled:opacity-50 cursor-pointer"
+            className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-medium border border-[#26293b] text-zinc-400 hover:bg-[#141622] hover:text-white rounded-lg transition-all duration-150 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`h-3 w-3 ${clearingFaults ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-2.5 w-2.5 ${clearingFaults ? "animate-spin" : ""}`} />
             <span>Reset</span>
           </button>
         </div>

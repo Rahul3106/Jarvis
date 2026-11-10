@@ -238,3 +238,4 @@ export default function MarkdownReportRenderer({ content }: MarkdownReportRender
 
   return <div className="space-y-1 text-slate-300 font-sans leading-relaxed">{blocks}</div>;
 }
+
