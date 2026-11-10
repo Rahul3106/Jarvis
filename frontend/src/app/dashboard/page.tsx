@@ -1754,107 +1754,51 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 3-Panel Operations Workspace (Bolt.new Cockpit) */}
-        <div className="bg-[#0b0c12] border border-[#1b1e2c] shadow-[0_15px_50px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col lg:flex-row lg:h-[730px] w-full divide-y lg:divide-y-0 lg:divide-x divide-[#1b1e2c]">
+        {/* Operations Workspace: Mission Control Split Cockpit (Pattern 1) */}
+        <div className="bg-[#0b0c12] border border-[#1b1e2c] shadow-[0_15px_50px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col lg:flex-row lg:h-[780px] w-full divide-y lg:divide-y-0 lg:divide-x divide-[#1b1e2c]">
 
-          {/* Panel 1: Fault Simulation Injector */}
-          <div className="w-full lg:w-[25%] flex flex-col h-[500px] lg:h-full overflow-hidden bg-[#0a0b10]">
-            <div className="p-3.5 bg-[#0e1017] border-b border-[#1b1e2c] flex items-center justify-between">
-              <h4 className="text-xs font-bold tracking-normal font-medium text-[#a1a4a5] flex items-center space-x-1.5">
-                <Flame className="h-4 w-4 text-rose-500" />
-                <span>Simulated Services</span>
-              </h4>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-              {Object.values(services).map((service) => (
-                <div
-                  key={service.name}
-                  className="p-3 bg-[#11131d] border border-[#1e2232] rounded-xl flex flex-col space-y-2 hover:border-[#2f354c] transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[11px] text-white">{service.name}</span>
-                    <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded border ${getStatusColor(service.status)}`}>
-                      {service.status.toUpperCase()}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1 text-[9px] text-[#71717a]">
-                    <div className="flex justify-between">
-                      <span>CPU: <strong className="text-white font-mono">{(service.cpu * 100).toFixed(0)}%</strong></span>
-                      <span>MEM: <strong className="text-white font-mono">{service.memory.toFixed(0)} MB</strong></span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1.5 border-t border-[#1a1d2b] flex items-center gap-1 flex-wrap">
-                    <button
-                      onClick={() => injectFault(service.name, "memory-leak")}
-                      disabled={injectingFault !== null || service.status === "offline"}
-                      className="px-2 py-0.5 text-[8px] font-bold text-red-400 hover:text-white border border-red-500/30 hover:bg-red-500/20 rounded-md transition-all cursor-pointer"
-                    >
-                      Leak Mem
-                    </button>
-                    <button
-                      onClick={() => injectFault(service.name, "cpu-spike")}
-                      disabled={injectingFault !== null || service.status === "offline"}
-                      className="px-2 py-0.5 text-[8px] font-bold text-amber-400 hover:text-white border border-amber-500/30 hover:bg-amber-500/20 rounded-md transition-all cursor-pointer"
-                    >
-                      Spike CPU
-                    </button>
-                    <button
-                      onClick={() => injectFault(service.name, "db-saturation")}
-                      disabled={injectingFault !== null || service.status === "offline"}
-                      className="px-2 py-0.5 text-[8px] font-bold text-rose-400 hover:text-white border border-rose-500/30 hover:bg-rose-500/20 rounded-md transition-all cursor-pointer"
-                    >
-                      Sat DB
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick 4-tier risk injection test */}
-            <div className="p-3 bg-[#07080c] border-t border-[#1b1e2c] text-white">
-              <span className="text-[10px] font-bold tracking-normal font-medium text-[#71717a] block mb-1">
-                Risk Gate Tests
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => triggerTestIncident("low")}
-                  className="px-2 py-1 text-[9px] font-bold bg-[#11131c] hover:bg-[#1a1d2c] text-emerald-400 rounded-md cursor-pointer border border-[#232738]"
-                >
-                  Low Risk (Auto)
-                </button>
-                <button
-                  onClick={() => triggerTestIncident("critical")}
-                  className="px-2 py-1 text-[9px] font-bold bg-[#11131c] hover:bg-[#1a1d2c] text-rose-400 rounded-md cursor-pointer border border-[#232738]"
-                >
-                  Critical (Halt)
-                </button>
+          {/* Left Panel: Incident Command & Curated Chaos Lab (30% Width) */}
+          <div className="w-full lg:w-[32%] xl:w-[30%] flex flex-col h-[520px] lg:h-full overflow-hidden bg-[#0c0d14]">
+            {/* Incident Header & Filters */}
+            <div className="p-3.5 bg-[#0e1017] border-b border-[#1b1e2c] flex items-center justify-between shrink-0">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                <h4 className="text-xs font-bold tracking-tight text-white font-heading">
+                  Incident Command
+                </h4>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                  filteredIncidents.length > 0 
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse" 
+                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                }`}>
+                  {filteredIncidents.length} Active
+                </span>
               </div>
-            </div>
-          </div>
-
-          {/* Panel 2: Correlated Incidents Feed */}
-          <div className="w-full lg:w-[25%] flex flex-col h-[400px] lg:h-full overflow-hidden bg-[#0c0d14]">
-            <div className="p-3.5 bg-[#0e1017] border-b border-[#1b1e2c] flex items-center justify-between">
-              <h4 className="text-xs font-bold tracking-normal font-medium text-[#a1a4a5] flex items-center space-x-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <span>Correlated Incidents</span>
-              </h4>
               <button
                 onClick={() => setFilterActive(!filterActive)}
-                className={`text-[9px] px-2 py-0.5 rounded-full border font-bold uppercase cursor-pointer ${filterActive ? "bg-[#1488fc] text-white border-[#1488fc]" : "border-[#272a3a] text-[#a1a4a5]"}`}
+                className={`text-[9px] px-2.5 py-0.5 rounded-full border font-mono font-bold uppercase transition-all cursor-pointer ${
+                  filterActive 
+                    ? "bg-[#1488fc] text-white border-[#1488fc]" 
+                    : "border-white/10 text-zinc-400 hover:text-white"
+                }`}
               >
-                {filterActive ? "All" : "Active"}
+                {filterActive ? "View All" : "Active Only"}
               </button>
             </div>
 
+            {/* Incidents Scrollable List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
               {filteredIncidents.length === 0 ? (
-                <div className="h-40 flex flex-col items-center justify-center text-[#71717a] text-center space-y-2 border border-dashed border-[#1f2233] rounded-xl">
-                  <CheckCircle className="h-6 w-6 text-emerald-500" />
-                  <span className="text-[10px] font-bold">No Active Incidents</span>
+                <div className="p-5 flex flex-col items-center justify-center text-center space-y-2 border border-dashed border-[#1f2233] rounded-xl bg-black/20 my-2">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <CheckCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Cluster Operating Nominally</h5>
+                    <p className="text-[10px] text-zinc-400 mt-0.5 max-w-[210px] leading-relaxed">
+                      Zero unhandled anomalies. Launch a failure from the Chaos Lab below to test autonomous triage.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 filteredIncidents.map((incident) => {
@@ -1865,36 +1809,42 @@ export default function DashboardPage() {
                     <div
                       key={incident.id}
                       onClick={() => setSelectedIncidentId(incident.id)}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex flex-col space-y-2 ${isSelected
-                        ? "bg-[#141b2e] border-[#1488fc]/60 shadow-md ring-1 ring-[#1488fc]/30"
-                        : "bg-[#10121a] border-[#1b1e2b] hover:border-[#2b3045]"
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex flex-col space-y-2 relative group ${
+                        isSelected
+                          ? "bg-[#13192e] border-[#1488fc] shadow-lg ring-1 ring-[#1488fc]/50"
+                          : "bg-[#10121a] border-[#1b1e2b] hover:border-[#2b3045] hover:bg-[#121420]"
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[9px] font-bold text-[#818cf8]">{incident.id}</span>
+                        <span className="font-mono text-[9px] font-bold text-sky-400 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                          {incident.id}
+                        </span>
                         {getIncidentStatusBadge(incident.status)}
                       </div>
 
                       <div>
-                        <h4 className="font-bold text-xs text-white">{incident.alert_name}</h4>
-                        <div className="text-[#a1a4a5] text-[9px] flex items-center gap-1 mt-0.5">
-                          <span>Service:</span>
-                          <span className="font-mono text-white font-semibold">{incident.service}</span>
+                        <h4 className="font-bold text-xs text-white group-hover:text-cyan-300 transition-colors">
+                          {incident.alert_name}
+                        </h4>
+                        <div className="text-zinc-400 text-[9px] flex items-center gap-1 mt-0.5 font-mono">
+                          <span>Target:</span>
+                          <span className="text-white font-semibold">{incident.service}</span>
                         </div>
                       </div>
 
                       {/* Correlated blast radius badges */}
                       {affected.length > 1 && (
-                        <div className="flex items-center gap-1 flex-wrap pt-1">
-                          <span className="px-1.5 py-0.2 text-[8px] bg-purple-500/10 text-purple-300 border border-purple-500/30 rounded-full font-bold">
+                        <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                          <span className="px-2 py-0.5 text-[8px] bg-purple-500/15 text-purple-300 border border-purple-500/30 rounded-full font-mono font-bold">
                             {affected.length} Connected Services
                           </span>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between pt-1.5 border-t border-[#1b1e2b] text-[9px] text-[#71717a]">
+                      <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.04] text-[9px] font-mono text-zinc-500">
                         <span className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3 w-3 text-cyan-400" />
                           <span>{formatTime(incident.created_at)}</span>
                         </span>
                         {incident.failed_transactions ? (
@@ -1908,10 +1858,92 @@ export default function DashboardPage() {
                 })
               )}
             </div>
+
+            {/* Curated Chaos Lab & Scenarios */}
+            <div className="p-3.5 bg-[#090a10] border-t border-[#1b1e2c] space-y-2.5 shrink-0">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-400 flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5 text-rose-500" />
+                  <span>Curated Chaos Lab</span>
+                </span>
+                <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-800/40 px-1.5 py-0.2 rounded">
+                  1-Click Presets
+                </span>
+              </div>
+
+              {/* 4 Interactive Disaster Scenarios */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={runPaymentPlatformScenario}
+                  disabled={scenarioLoading}
+                  className="p-2 text-left rounded-lg border border-rose-500/30 bg-rose-950/20 hover:bg-rose-900/30 transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <div className="text-[10px] font-bold text-white group-hover:text-rose-300 flex items-center justify-between">
+                    <span>DB Saturation</span>
+                    <Play className="h-2.5 w-2.5 text-rose-400 fill-current" />
+                  </div>
+                  <div className="text-[8px] text-zinc-400 mt-0.5 line-clamp-1">Cascading connection lock</div>
+                </button>
+
+                <button
+                  onClick={() => triggerTestIncident("critical")}
+                  disabled={triggeringRisk !== null}
+                  className="p-2 text-left rounded-lg border border-amber-500/30 bg-amber-950/20 hover:bg-amber-900/30 transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <div className="text-[10px] font-bold text-white group-hover:text-amber-300 flex items-center justify-between">
+                    <span>TLS Expiry</span>
+                    <Play className="h-2.5 w-2.5 text-amber-400 fill-current" />
+                  </div>
+                  <div className="text-[8px] text-zinc-400 mt-0.5 line-clamp-1">Acquirer mTLS handshake</div>
+                </button>
+
+                <button
+                  onClick={() => injectFault("user-service", "memory-leak")}
+                  disabled={injectingFault !== null}
+                  className="p-2 text-left rounded-lg border border-purple-500/30 bg-purple-950/20 hover:bg-purple-900/30 transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <div className="text-[10px] font-bold text-white group-hover:text-purple-300 flex items-center justify-between">
+                    <span>JVM Heap Leak</span>
+                    <Play className="h-2.5 w-2.5 text-purple-400 fill-current" />
+                  </div>
+                  <div className="text-[8px] text-zinc-400 mt-0.5 line-clamp-1">User-Service OOM spiral</div>
+                </button>
+
+                <button
+                  onClick={() => injectFault("api-gateway", "cpu-spike")}
+                  disabled={injectingFault !== null}
+                  className="p-2 text-left rounded-lg border border-sky-500/30 bg-sky-950/20 hover:bg-sky-900/30 transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <div className="text-[10px] font-bold text-white group-hover:text-sky-300 flex items-center justify-between">
+                    <span>Gateway Spike</span>
+                    <Play className="h-2.5 w-2.5 text-sky-400 fill-current" />
+                  </div>
+                  <div className="text-[8px] text-zinc-400 mt-0.5 line-clamp-1">Ingress retry storm</div>
+                </button>
+              </div>
+
+              {/* Quick Risk Gate Tests */}
+              <div className="pt-2 border-t border-white/[0.04] flex items-center gap-1.5">
+                <button
+                  onClick={() => triggerTestIncident("low")}
+                  disabled={triggeringRisk !== null}
+                  className="flex-1 py-1 text-[9px] font-mono font-bold bg-[#11131c] hover:bg-[#1a1d2c] text-emerald-400 rounded-md cursor-pointer border border-[#232738] transition-all"
+                >
+                  Low Risk (Auto-Heal)
+                </button>
+                <button
+                  onClick={() => triggerTestIncident("critical")}
+                  disabled={triggeringRisk !== null}
+                  className="flex-1 py-1 text-[9px] font-mono font-bold bg-[#11131c] hover:bg-[#1a1d2c] text-rose-400 rounded-md cursor-pointer border border-[#232738] transition-all"
+                >
+                  Critical (Halt Gate)
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Panel 3: Interactive J.A.R.V.I.S. Incident Intelligence Center */}
-          <div className="w-full lg:w-[50%] flex flex-col h-[550px] lg:h-full overflow-hidden bg-[#090a0f]">
+          {/* Right Stage: Autonomous Remediation & Causal Stage (70% Width) */}
+          <div className="w-full lg:w-[68%] xl:w-[70%] flex flex-col h-[580px] lg:h-full overflow-hidden bg-[#090a0f]">
             {/* Tab Navigation */}
             <div className="p-3 bg-[#0e1017] border-b border-[#1b1e2c] flex items-center justify-between shrink-0">
               <div className="flex items-center space-x-1 overflow-x-auto">
@@ -2349,11 +2381,73 @@ export default function DashboardPage() {
 
               </div>
             ) : (
-              <div className="flex-grow flex flex-col items-center justify-center text-center text-[#71717a] space-y-3 p-10">
-                <Terminal className="h-9 w-9 text-[#71717a] animate-pulse" />
-                <div>
-                  <h3 className="font-bold text-xs text-slate-400">No Incident Selected</h3>
-                  <p className="text-[10px] max-w-[200px] mt-1 text-[#71717a]">Select an incident from the feed to view RCA & timelines.</p>
+              <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4">
+                {/* Sentry Mode Header Banner */}
+                <div className="p-4 rounded-xl border border-white/[0.08] bg-gradient-to-r from-[#101424] via-[#0c0d16] to-[#121124] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-emerald-400">
+                        Autonomous Sentry Mode Active
+                      </span>
+                      <span className="text-[10px] text-zinc-500 font-mono">• 0 Active Outages</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white tracking-tight font-heading">
+                      Live Causal Architecture & Topology Mesh
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 max-w-xl leading-relaxed">
+                      All microservices are communicating normally. Live dependency edges, ingress routes, and shared PostgreSQL storage connections are nominal.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={runPaymentPlatformScenario}
+                      disabled={scenarioLoading}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-md shadow-rose-900/30 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Play className="h-3 w-3 fill-current" />
+                      <span>{scenarioLoading ? "Simulating..." : "Test Incident Scenario"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* The Interactive Causal Topology Graph in Nominal State */}
+                <div className="rounded-xl border border-white/[0.08] bg-[#07080d] p-3 shadow-inner">
+                  <CausalTopologyGraph affectedServices={[]} />
+                </div>
+
+                {/* Autonomous Readiness HUD */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-[#10121b] border border-white/[0.06] rounded-xl space-y-1">
+                    <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Shield className="h-3 w-3 text-cyan-400" />
+                      <span>Diagnostics Engine</span>
+                    </div>
+                    <div className="text-xs font-bold text-white font-mono">Groq Cloud (Llama-3.3-70B)</div>
+                    <div className="text-[9px] text-emerald-400">Ready for automated causal triage</div>
+                  </div>
+
+                  <div className="p-3 bg-[#10121b] border border-white/[0.06] rounded-xl space-y-1">
+                    <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Network className="h-3 w-3 text-sky-400" />
+                      <span>Telemetry Streams</span>
+                    </div>
+                    <div className="text-xs font-bold text-white font-mono">4 Unified Channels</div>
+                    <div className="text-[9px] text-zinc-400">Prometheus, JSONL, mTLS Traces, Chaos</div>
+                  </div>
+
+                  <div className="p-3 bg-[#10121b] border border-white/[0.06] rounded-xl space-y-1">
+                    <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-amber-400" />
+                      <span>Operations Timezone</span>
+                    </div>
+                    <div className="text-xs font-bold text-white font-mono">Asia/Kolkata (IST · UTC+5:30)</div>
+                    <div className="text-[9px] text-zinc-400">High-precision timestamp sync</div>
+                  </div>
                 </div>
               </div>
             )}
