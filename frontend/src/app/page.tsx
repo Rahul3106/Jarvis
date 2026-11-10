@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import Lenis from "lenis";
+import "lenis/dist/lenis.css";
 import { 
   Activity, 
   AlertTriangle, 
@@ -284,8 +286,46 @@ export default function Home() {
   const [typedLogs, setTypedLogs] = useState<string[]>([]);
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkStats | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lenisRef = useRef<Lenis | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  // Initialize Lenis smooth scrolling for home page
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: "vertical",
+      gestureOrientation: "vertical",
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 1.5,
+    });
+    lenisRef.current = lenis;
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
+
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(targetId, { offset: -90 });
+    } else {
+      const el = document.querySelector(targetId);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     const fetchBenchmarks = async () => {
@@ -368,16 +408,32 @@ export default function Home() {
           </div>
 
           <nav className="hidden md:flex items-center space-x-1 text-[12px] font-medium text-white/70">
-            <a href="#problem" className="rounded-full bg-white/15 px-3.5 py-1 text-white font-medium border border-white/10 backdrop-blur-sm shadow-inner transition-all">
+            <a 
+              href="#problem" 
+              onClick={(e) => scrollToSection(e, "#problem")}
+              className="rounded-full bg-white/15 px-3.5 py-1 text-white font-medium border border-white/10 backdrop-blur-sm shadow-inner transition-all cursor-pointer"
+            >
               Problem
             </a>
-            <a href="#simulator" className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all">
+            <a 
+              href="#simulator" 
+              onClick={(e) => scrollToSection(e, "#simulator")}
+              className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            >
               Live Simulation
             </a>
-            <a href="#architecture" className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all">
+            <a 
+              href="#architecture" 
+              onClick={(e) => scrollToSection(e, "#architecture")}
+              className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            >
               Correlation Engine
             </a>
-            <a href="#benchmarks" className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all">
+            <a 
+              href="#benchmarks" 
+              onClick={(e) => scrollToSection(e, "#benchmarks")}
+              className="px-3 py-1 rounded-full hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            >
               Benchmarks
             </a>
           </nav>
@@ -418,7 +474,8 @@ export default function Home() {
           </Link>
           <a
             href="#simulator"
-            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 text-sm font-medium px-6 py-3 rounded-xl border border-[#242633] bg-[#0e0f14] text-[#d1d5db] hover:border-[#383b4e] hover:text-white transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b9eff]"
+            onClick={(e) => scrollToSection(e, "#simulator")}
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 text-sm font-medium px-6 py-3 rounded-xl border border-[#242633] bg-[#0e0f14] text-[#d1d5db] hover:border-[#383b4e] hover:text-white transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b9eff] cursor-pointer"
           >
             <Play className="h-4 w-4 text-[#ff801f]" />
             <span>Watch Live Correlation Demo</span>
