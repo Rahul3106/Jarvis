@@ -54,9 +54,13 @@ app.add_middleware(
 # Replaces Prometheus + AlertManager when they are not available (local dev).
 # Polls every service every 5 seconds for anomalies and triggers the agent.
 
-MONITOR_INTERVAL = 5  # seconds
-MEMORY_THRESHOLD_MB = 50.0  # trigger alert above this
-CPU_THRESHOLD = 0.80  # trigger alert above this
+MONITOR_INTERVAL = 10  # seconds
+MEMORY_THRESHOLD_MB = 120.0  # trigger alert above this (well above normal baseline)
+CPU_THRESHOLD = 0.85  # trigger alert above this
+ENABLE_HEALTH_MONITOR = os.getenv("ENABLE_HEALTH_MONITOR", "false").lower() in ("true", "1", "yes")
+
+# Concurrency lock to prevent multiple simultaneous LLM agent runs from eating tokens
+_agent_workflow_lock = threading.Lock()
 
 # Will be populated after LOCAL_PORTS is defined further below
 _monitor_thread = None
@@ -262,9 +266,12 @@ def _health_monitor_loop():
                         elif active_fault == "CertificateExpiration":
                             alert_name = "CertificateExpiration"
                             severity = "critical"
-                        else:
-                            alert_name = "HttpErrorSpike"
+                        elif active_fault:
+                            alert_name = active_fault
                             severity = "critical"
+                        else:
+                            # Transient lag or service starting up; do NOT trigger false incidents
+                            continue
                     else:
                         continue  # service is healthy, move on
 
@@ -291,10 +298,13 @@ def startup_event():
     init_db()
     logger.info("Database initialized.")
 
-    # Start background health monitor thread
-    _monitor_thread = threading.Thread(target=_health_monitor_loop, daemon=True)
-    _monitor_thread.start()
-    logger.info("Background health monitor thread launched.")
+    # Only start background health monitor thread if explicitly enabled
+    if ENABLE_HEALTH_MONITOR:
+        _monitor_thread = threading.Thread(target=_health_monitor_loop, daemon=True)
+        _monitor_thread.start()
+        logger.info("Background health monitor thread launched.")
+    else:
+        logger.info("Background auto health monitor is disabled (ENABLE_HEALTH_MONITOR=false). Incidents will be triggered on-demand via Chaos Lab or AlertManager.")
 
 # Pydantic Schemas
 class FaultInjectionRequest(BaseModel):
@@ -303,8 +313,10 @@ class FaultInjectionRequest(BaseModel):
 
 # Helper to run LangGraph Agent
 def run_agent_workflow(incident_id: str, service: str, alert_name: str):
-    logger.info(f"Starting background LangGraph workflow for incident {incident_id}")
-    try:
+    logger.info(f"Queued background LangGraph workflow for incident {incident_id}")
+    with _agent_workflow_lock:
+        logger.info(f"Acquired lock: Starting LangGraph workflow for incident {incident_id}")
+        try:
         db = SessionLocal()
         correlated_events = []
         impact_metrics = {}
@@ -1243,7 +1255,7 @@ def get_service_url(service: str) -> str:
     # Try container host DNS
     url = f"http://{service}:8000"
     try:
-        resp = requests.get(f"{url}/health", timeout=0.15)
+        resp = requests.get(f"{url}/health", timeout=0.6)
         if resp.status_code == 200:
             return url
     except Exception:
