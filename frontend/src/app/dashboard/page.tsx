@@ -42,6 +42,7 @@ import {
   Compass,
   Printer
 } from "lucide-react";
+import MarkdownReportRenderer from "./MarkdownReportRenderer";
 
 // Get API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -1727,8 +1728,8 @@ export default function DashboardPage() {
                     </div>
 
                     {selectedIncident.resolution_action ? (
-                      <div className="printable-report bg-[#07080d] text-[#fcfdff] p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap border border-[#1c1f2e] shadow-inner max-h-[500px]">
-                        {selectedIncident.resolution_action}
+                      <div className="printable-report bg-[#07080d] p-5 rounded-xl border border-[#1c1f2e] shadow-inner overflow-y-auto max-h-[580px]">
+                        <MarkdownReportRenderer content={selectedIncident.resolution_action} />
                       </div>
                     ) : (
                       <div className="p-8 text-center text-[#71717a] text-xs space-y-2">
